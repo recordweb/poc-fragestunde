@@ -34,31 +34,31 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
 
 ### Systemübersicht
 
-┌─────────────────────────────────────────────────┐
-│ FRAGENMANAGEMENT (Parlamentsdienste)            │
-│ did:rwp:parlament.ch                            │
-│                                                 │
-│ Records: Fragestunde-Frage                      │
-│ Notify via: LDN → Antwortmanagement             │
-│ Discovery: Nanopub → Öffentlichkeit             │
-└──────────────────────┬──────────────────────────┘
-                       │ LDN Notification (bei Finalisierung)
-                       ▼
-┌─────────────────────────────────────────────────┐
-│ ANTWORTMANAGEMENT (Bundeskanzlei)               │
-│ did:rwp:bk.admin.ch                             │
-│                                                 │
-│ Records: Fragestunde-Case, Antwort, Nachweis    │
-│ Liest Frage via DID (keine lokale Kopie!)       │
-│ Nanopub → Journalist abonniert                  │
-└──────────────────────┬──────────────────────────┘
-                       │ Nanopub (bei Case-Abschluss)
-                       ▼
-┌─────────────────────────────────────────────────┐
-│ NANOPUB-FEDERATION                              │
-│ Öffentliche Entdeckbarkeit                      │
-│ Journalist Lukas Meier abonniert Cases          │
-└──────────────────────┬──────────────────────────┘
+┌─────────────────────────────────────────────────┐  
+│ FRAGENMANAGEMENT (Parlamentsdienste)            │  
+│ did:rwp:parlament.ch                            │  
+│                                                 │  
+│ Records: Fragestunde-Frage                      │  
+│ Notify via: LDN → Antwortmanagement             │  
+│ Discovery: Nanopub → Öffentlichkeit             │  
+└──────────────────────┬──────────────────────────┘  
+                       │ LDN Notification (bei Finalisierung)  
+                       ▼  
+┌─────────────────────────────────────────────────┐  
+│ ANTWORTMANAGEMENT (Bundeskanzlei)               │  
+│ did:rwp:bk.admin.ch                             │  
+│                                                 │  
+│ Records: Fragestunde-Case, Antwort, Nachweis    │  
+│ Liest Frage via DID (keine lokale Kopie!)       │  
+│ Nanopub → Journalist abonniert                  │  
+└──────────────────────┬──────────────────────────┘  
+                       │ Nanopub (bei Case-Abschluss)  
+                       ▼  
+┌─────────────────────────────────────────────────┐  
+│ NANOPUB-FEDERATION                              │  
+│ Öffentliche Entdeckbarkeit                      │  
+│ Journalist Lukas Meier abonniert Cases          │  
+└──────────────────────┬──────────────────────────┘  
 
 
 ---
@@ -145,32 +145,32 @@ Alle Schema-Definitionen liegen unter `schemas/`. Beispiel-Records liegen unter 
 
 ## Repository-Struktur
 
-poc-fragestunde/
-│
-├── README.md ← Dieses Dokument
-│
-├── schemas/ ← JSON-Schema-Definitionen (SchemaRecords)
-│ ├── fragestunde-frage.schema.json
-│ ├── fragestunde-antwort.schema.json
-│ ├── fragestunde-case.schema.json
-│ ├── fragestunde-nachweis.schema.json
-│ └── examples/ ← Beispiel-Records (Mock-Daten)
-│   ├── frage-bernasconi-hs2026.json
-│   ├── case-ejpd-hs2026.json
-│   ├── antwort-huber-hs2026.json
-│   ├── nachweis-vortrag-hs2026.json
-│   ├── nanopub-frage.ttl
-│   ├── nanopub-case-abschluss.ttl
-│   └── ldn-notification.json
-│
-├── apps/
-│ ├── fragenmanagement/
-│ │ └── fragenmanagement.html ← Single-file HTML-App
-│ └── antwortmanagement/
-│   └── antwortmanagement.html ← Single-file HTML-App
-│
-└── viewer/
-  └── rw-viewer.html ← Record-Viewer (liest Beispiel-Records)
+poc-fragestunde/  
+│  
+├── README.md ← Dieses Dokument  
+│  
+├── schemas/ ← JSON-Schema-Definitionen (SchemaRecords)  
+│ ├── fragestunde-frage.schema.json  
+│ ├── fragestunde-antwort.schema.json  
+│ ├── fragestunde-case.schema.json  
+│ ├── fragestunde-nachweis.schema.json  
+│ └── examples/ ← Beispiel-Records (Mock-Daten)  
+│   ├── frage-bernasconi-hs2026.json  
+│   ├── case-ejpd-hs2026.json  
+│   ├── antwort-huber-hs2026.json  
+│   ├── nachweis-vortrag-hs2026.json  
+│   ├── nanopub-frage.ttl  
+│   ├── nanopub-case-abschluss.ttl  
+│   └── ldn-notification.json  
+│  
+├── apps/  
+│ ├── fragenmanagement/  
+│ │ └── fragenmanagement.html ← Single-file HTML-App  
+│ └── antwortmanagement/  
+│   └── antwortmanagement.html ← Single-file HTML-App  
+│  
+└── viewer/  
+  └── rw-viewer.html ← Record-Viewer (liest Beispiel-Records)  
 
 
 ---
