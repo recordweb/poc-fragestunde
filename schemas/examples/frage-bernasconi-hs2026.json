@@ -1,0 +1,21 @@
+{
+  "did": "did:rwp:parlament.ch/records/frage-a1b2c3d4-hs2026",
+  "snapshotHash": "sha256:e3f1a2b9c4d5e6f7a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+  "recordType": "did:rwp:parlament.ch/schema/fragestunde-frage",
+  "schemaVersion": "sha256:a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+  "state": "finalized",
+  "created": "2026-09-08T14:23:00Z",
+  "finalized": "2026-09-08T14:31:00Z",
+  "owner": "did:rwp:parlament.ch/users/maria-bernasconi",
+  "parents": [],
+  "payloadHash": "sha256:d2a1b3c4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "payloadFormat": "application/json",
+  "signature": "z3FttV7xQpLmNrKsJhGfDcBaZy_PLACEHOLDER_PoC",
+  "payload": {
+    "fragetext": "Welche Massnahmen plant der Bundesrat, um die digitale Souveränität der Schweizer Verwaltung bei der Nutzung von Cloud-Diensten ausländischer Anbieter bis Ende 2027 zu stärken?",
+    "session": "Herbstsession 2026",
+    "parlamentarier_did": "did:rwp:parlament.ch/users/maria-bernasconi",
+    "eingereicht_am": "2026-09-08T14:31:00Z",
+    "departement_ziel": "BK"
+  }
+}
