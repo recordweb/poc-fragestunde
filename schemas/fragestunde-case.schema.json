@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "rwpSchemaVersion": "0.0.1",
+  "schemaId": "did:rwp:bk.admin.ch/schema/fragestunde-case",
+  "displayName": "Fragestunde — Case",
+  "description": "Case-Record im Antwortmanagement. Verlinkt Frage, Antwort und Vortragungsnachweis. Kann erst geschlossen werden, wenn Antwort und Nachweis finalisiert sind.",
+  "allowedStates": ["open", "in_bearbeitung", "antwort_verfasst", "closed"],
+  "stateTransitions": [
+    { "from": "open", "to": "in_bearbeitung" },
+    { "from": "in_bearbeitung", "to": "antwort_verfasst", "condition": "antwort_did gesetzt und antwort finalized" },
+    { "from": "antwort_verfasst", "to": "closed", "condition": "nachweis_did gesetzt und nachweis finalized", "requiresOwnerSignature": true }
+  ],
+  "payloadFormats": {
+    "open": ["application/json"],
+    "in_bearbeitung": ["application/json"],
+    "antwort_verfasst": ["application/json"],
+    "closed": ["application/json"]
+  },
+  "type": "object",
+  "required": ["frage_did", "frage_snapshot_hash", "departement", "sachbearbeiter_did", "eroeffnet_am"],
+  "properties": {
+    "frage_did": {
+      "type": "string",
+      "pattern": "^did:rwp:",
+      "description": "DID der Frage — wird via DID gelesen, keine lokale Kopie."
+    },
+    "frage_snapshot_hash": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "departement": {
+      "type": "string",
+      "enum": ["EDA", "EDI", "EJPD", "VBS", "EFD", "WBF", "UVEK", "BK"]
+    },
+    "sachbearbeiter_did": {
+      "type": "string",
+      "pattern": "^did:rwp:"
+    },
+    "eroeffnet_am": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "antwort_did": {
+      "type": ["string", "null"],
+      "description": "DID der Antwort — gesetzt sobald Antwort erstellt."
+    },
+    "antwort_snapshot_hash": {
+      "type": ["string", "null"]
+    },
+    "nachweis_did": {
+      "type": ["string", "null"],
+      "description": "DID des Vortragungsnachweises — Pflichtvoraussetzung für Abschluss."
+    },
+    "nachweis_snapshot_hash": {
+      "type": ["string", "null"]
+    },
+    "merkle_root": {
+      "type": ["string", "null"],
+      "description": "Merkle-Root über alle verlinkten Records — berechnet bei Abschluss."
+    },
+    "geschlossen_am": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}
