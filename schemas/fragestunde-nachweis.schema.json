@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "rwpSchemaVersion": "0.0.1",
+  "schemaId": "did:rwp:bk.admin.ch/schema/fragestunde-nachweis",
+  "displayName": "Fragestunde — Vortragungsnachweis",
+  "description": "Nachweis, dass eine Antwort im Parlament vorgetragen wurde. Erst nach Finalisierung dieses Records kann der Case geschlossen werden.",
+  "allowedStates": ["draft", "finalized"],
+  "stateTransitions": [
+    { "from": "draft", "to": "finalized", "requiresOwnerSignature": true }
+  ],
+  "payloadFormats": {
+    "draft": ["application/json"],
+    "finalized": ["application/json"]
+  },
+  "type": "object",
+  "required": ["antwort_did", "antwort_snapshot_hash", "vorgetragen_am", "bestaetigt_durch_did", "sitzung_protokoll_ref"],
+  "properties": {
+    "antwort_did": {
+      "type": "string",
+      "pattern": "^did:rwp:"
+    },
+    "antwort_snapshot_hash": {
+      "type": "string",
+      "pattern": "^sha256:"
+    },
+    "vorgetragen_am": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Datum und Uhrzeit der Vortragung."
+    },
+    "bestaetigt_durch_did": {
+      "type": "string",
+      "pattern": "^did:rwp:",
+      "description": "DID der bestätigenden Person."
+    },
+    "sitzung_protokoll_ref": {
+      "type": "string",
+      "description": "Referenz zum Sitzungsprotokoll (z. B. Amtsblatt-Nummer)."
+    }
+  },
+  "additionalProperties": false
+}

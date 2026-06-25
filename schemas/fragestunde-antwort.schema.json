@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "rwpSchemaVersion": "0.0.1",
+  "schemaId": "did:rwp:bk.admin.ch/schema/fragestunde-antwort",
+  "displayName": "Fragestunde — Antwort",
+  "description": "Die Antwort eines Bundesratsmitglieds auf eine parlamentarische Frage.",
+  "allowedStates": ["draft", "finalized"],
+  "stateTransitions": [
+    { "from": "draft", "to": "finalized", "requiresOwnerSignature": true }
+  ],
+  "payloadFormats": {
+    "draft": ["application/json"],
+    "finalized": ["application/json"]
+  },
+  "type": "object",
+  "required": ["antworttext", "frage_did", "frage_snapshot_hash", "bundesrat_did", "beantwortet_am"],
+  "properties": {
+    "antworttext": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "Der Text der Antwort (max. 500 Zeichen)."
+    },
+    "frage_did": {
+      "type": "string",
+      "pattern": "^did:rwp:",
+      "description": "DID der zugehörigen Frage (im Fragenmanagement, keine Kopie)."
+    },
+    "frage_snapshot_hash": {
+      "type": "string",
+      "pattern": "^sha256:",
+      "description": "snapshotHash der finalisierten Frage — Integritätsnachweis."
+    },
+    "bundesrat_did": {
+      "type": "string",
+      "pattern": "^did:rwp:",
+      "description": "DID des antwortenden Bundesratsmitglieds."
+    },
+    "beantwortet_am": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}
