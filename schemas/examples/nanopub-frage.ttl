@@ -1,0 +1,31 @@
+@prefix np: <http://www.nanopub.org/nschema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rwp: <https://recordweb.org/ns/rwp#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <https://np.recordweb.org/frage-a1b2c3d4-hs2026#> .
+
+:Head {
+  : a np:Nanopublication ;
+    np:hasAssertion :Assertion ;
+    np:hasProvenance :Provenance ;
+    np:hasPublicationInfo :PubInfo .
+}
+
+:Assertion {
+  <did:rwp:parlament.ch/records/frage-a1b2c3d4-hs2026>
+    a rwp:FinalizedRecord ;
+    rwp:hasSnapshotHash "sha256:e3f1a2b9c4d5e6f7a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"^^xsd:string ;
+    rwp:recordType <did:rwp:parlament.ch/schema/fragestunde-frage> ;
+    rwp:state rwp:finalized ;
+    rwp:session "Herbstsession 2026"^^xsd:string .
+}
+
+:Provenance {
+  :Assertion prov:wasAttributedTo <did:rwp:parlament.ch/users/maria-bernasconi> ;
+             prov:generatedAtTime "2026-09-08T14:31:00Z"^^xsd:dateTime .
+}
+
+:PubInfo {
+  : prov:wasAttributedTo <did:rwp:parlament.ch/system/rwp-node> ;
+    prov:generatedAtTime "2026-09-08T14:31:01Z"^^xsd:dateTime .
+}

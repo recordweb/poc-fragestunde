@@ -1,0 +1,27 @@
+{
+  "did": "did:rwp:bk.admin.ch/records/case-f9e8d7c6-hs2026",
+  "snapshotHash": "sha256:c4d5e6f7a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+  "recordType": "did:rwp:bk.admin.ch/schema/fragestunde-case",
+  "schemaVersion": "sha256:b776b56031532f413ee62be7a5fc7ec9a3498321c5b6ef07a1bcf7498d7c2b14",
+  "state": "in_bearbeitung",
+  "created": "2026-09-08T15:05:00Z",
+  "finalized": null,
+  "owner": "did:rwp:bk.admin.ch/users/daniel-wyss",
+  "parents": [],
+  "payloadHash": "sha256:e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4",
+  "payloadFormat": "application/json",
+  "signature": null,
+  "payload": {
+    "frage_did": "did:rwp:parlament.ch/records/frage-a1b2c3d4-hs2026",
+    "frage_snapshot_hash": "sha256:e3f1a2b9c4d5e6f7a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+    "departement": "BK",
+    "sachbearbeiter_did": "did:rwp:bk.admin.ch/users/daniel-wyss",
+    "eroeffnet_am": "2026-09-08T15:05:00Z",
+    "antwort_did": null,
+    "antwort_snapshot_hash": null,
+    "nachweis_did": null,
+    "nachweis_snapshot_hash": null,
+    "merkle_root": null,
+    "geschlossen_am": null
+  }
+}

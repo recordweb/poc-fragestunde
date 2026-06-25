@@ -1,0 +1,21 @@
+{
+  "did": "did:rwp:bk.admin.ch/records/antwort-b2c3d4e5-hs2026",
+  "snapshotHash": "sha256:f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6",
+  "recordType": "did:rwp:bk.admin.ch/schema/fragestunde-antwort",
+  "schemaVersion": "sha256:c887c67142643e523ff73b5ad6b9ec8b4a1b89432c7b7fe18c7f86099e3d3c25",
+  "state": "finalized",
+  "created": "2026-09-10T09:15:00Z",
+  "finalized": "2026-09-10T09:42:00Z",
+  "owner": "did:rwp:bk.admin.ch/users/sandra-huber",
+  "parents": [],
+  "payloadHash": "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+  "payloadFormat": "application/json",
+  "signature": "zABCDEFGHIJKLMNOP_PLACEHOLDER_PoC",
+  "payload": {
+    "antworttext": "Der Bundesrat verfolgt die Strategie «Cloud Schweiz» und prüft den Aufbau einer souveränen Verwaltungscloud mit Schweizer Anbietern. Bis 2027 sollen kritische Systeme auf zertifizierte Anbieter mit Datenhaltung in der Schweiz migriert werden.",
+    "frage_did": "did:rwp:parlament.ch/records/frage-a1b2c3d4-hs2026",
+    "frage_snapshot_hash": "sha256:e3f1a2b9c4d5e6f7a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6",
+    "bundesrat_did": "did:rwp:bk.admin.ch/users/sandra-huber",
+    "beantwortet_am": "2026-09-10T09:42:00Z"
+  }
+}

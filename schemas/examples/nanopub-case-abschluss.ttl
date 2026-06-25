@@ -1,0 +1,35 @@
+@prefix np: <http://www.nanopub.org/nschema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rwp: <https://recordweb.org/ns/rwp#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <https://np.recordweb.org/case-f9e8d7c6-closed#> .
+
+:Head {
+  : a np:Nanopublication ;
+    np:hasAssertion :Assertion ;
+    np:hasProvenance :Provenance ;
+    np:hasPublicationInfo :PubInfo .
+}
+
+:Assertion {
+  <did:rwp:bk.admin.ch/records/case-f9e8d7c6-hs2026>
+    a rwp:FinalizedCase ;
+    rwp:hasSnapshotHash "sha256:cc1234abcd..."^^xsd:string ;
+    rwp:merkleRoot "sha256:merkle-root-of-frage-antwort-nachweis..."^^xsd:string ;
+    rwp:containsRecord
+      <did:rwp:parlament.ch/records/frage-a1b2c3d4-hs2026> ,
+      <did:rwp:bk.admin.ch/records/antwort-b2c3d4e5-hs2026> ,
+      <did:rwp:bk.admin.ch/records/nachweis-c3d4e5f6-hs2026> ;
+    rwp:state rwp:closed ;
+    rwp:session "Herbstsession 2026"^^xsd:string .
+}
+
+:Provenance {
+  :Assertion prov:wasAttributedTo <did:rwp:bk.admin.ch/users/daniel-wyss> ;
+             prov:generatedAtTime "2026-09-15T11:06:00Z"^^xsd:dateTime .
+}
+
+:PubInfo {
+  : prov:wasAttributedTo <did:rwp:bk.admin.ch/system/rwp-node> ;
+    prov:generatedAtTime "2026-09-15T11:06:01Z"^^xsd:dateTime .
+}
