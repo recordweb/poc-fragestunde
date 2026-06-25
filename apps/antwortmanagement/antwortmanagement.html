@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antwortmanagement — RecordWeb PoC</title>
+<style>
+:root {
+  --bg: #f4f5f7; --surface: #f8f9fb; --surface2: #ffffff;
+  --border: #d0d4dc; --divider: #dde0e7;
+  --text: #1e2330; --muted: #6b7280; --faint: #b0b6c3;
+  --primary: #2d4a8a; --primary-h: #1e3368; --primary-hi: #dce4f5;
+  --success: #2e7d4f; --warning: #92500d; --error: #8b1a4a;
+  --radius: 0.5rem; --radius-lg: 0.75rem;
+  --shadow: 0 1px 3px rgba(30,35,48,0.08), 0 4px 12px rgba(30,35,48,0.05);
+  --font: 'Inter', system-ui, sans-serif;
+}
+[data-theme="dark"] {
+  --bg: #13151c; --surface: #181b24; --surface2: #1d2130;
+  --border: #2e3347; --divider: #232738;
+  --text: #c8ccd8; --muted: #7880a0; --faint: #434860;
+  --primary: #6687cc; --primary-h: #4d6db8; --primary-hi: #1e2a45;
+  --success: #4aaa72; --warning: #d4874a; --error: #d16899;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text);
+  min-height: 100dvh; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+button { cursor: pointer; font: inherit; border: none; }
+input, textarea, select { font: inherit; color: var(--text); background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.5rem 0.75rem; width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s; }
+input:focus, textarea:focus, select:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(45,74,138,0.14); }
+label { font-size: 0.875rem; color: var(--muted); font-weight: 500;
+  display: block; margin-bottom: 0.35rem; }
+
+.app-header {
+  background: var(--surface); border-bottom: 1px solid var(--divider);
+  padding: 0 1.5rem; height: 56px; display: flex; align-items: center;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100;
+}
+.app-header .logo { display: flex; align-items: center; gap: 0.6rem; }
+.app-header .logo svg { color: var(--primary); }
+.app-header .logo span { font-weight: 600; font-size: 0.95rem; }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.user-pill { background: var(--primary-hi); color: var(--primary);
+  border-radius: 999px; padding: 0.2rem 0.75rem; font-size: 0.8rem; font-weight: 500; }
+.rolle-badge { background: var(--divider); color: var(--muted);
+  border-radius: 999px; padding: 0.15rem 0.6rem; font-size: 0.72rem; font-weight: 500; }
+.btn-icon { background: none; border: none; padding: 0.4rem;
+  color: var(--muted); border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s; }
+.btn-icon:hover { background: var(--divider); color: var(--text); }
+
+.main { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+.btn { display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1.1rem; border-radius: var(--radius); font-size: 0.875rem;
+  font-weight: 500; transition: background 0.15s, color 0.15s; white-space: nowrap; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-h); }
+.btn-secondary { background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--divider); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+.tabs { display: flex; border-bottom: 1px solid var(--divider); margin-bottom: 1.75rem; }
+.tab-btn { background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 0.65rem 1.1rem; font-size: 0.875rem; color: var(--muted);
+  cursor: pointer; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 500; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* LOGIN */
+#login-screen { display: flex; align-items: center; justify-content: center;
+  min-height: 100dvh; padding: 1rem; }
+.login-card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 2.5rem 2rem; width: 100%; max-width: 400px;
+  box-shadow: var(--shadow); }
+.brand { text-align: center; margin-bottom: 2rem; }
+.brand-icon { width: 48px; height: 48px; background: var(--primary);
+  border-radius: var(--radius-lg); display: flex; align-items: center;
+  justify-content: center; margin: 0 auto 0.75rem; }
+.brand-icon svg { color: #fff; }
+.login-card h1 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.2rem; }
+.login-card p { font-size: 0.83rem; color: var(--muted); }
+.form-group { margin-bottom: 1.25rem; }
+.login-error { color: var(--error); font-size: 0.82rem; margin-top: 0.4rem; min-height: 1.2rem; }
+.user-hints { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--divider); }
+.user-hints p { font-size: 0.78rem; color: var(--faint); margin-bottom: 0.5rem; }
+.user-hints code { background: var(--surface2); padding: 0.15rem 0.4rem;
+  border-radius: 4px; font-size: 0.78rem; color: var(--muted); display: block;
+  margin-bottom: 0.3rem; cursor: pointer; border: 1px solid var(--border); }
+.user-hints code:hover { border-color: var(--primary); color: var(--primary); }
+
+/* INBOX */
+.inbox-header { display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.25rem; }
+.inbox-header h2 { font-size: 1rem; font-weight: 600; }
+.notification-item { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+  display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 1rem;
+  transition: box-shadow 0.15s; }
+.notification-item.unread { border-left: 3px solid var(--primary); }
+.notification-item .notif-source { font-size: 0.75rem; color: var(--primary);
+  font-family: monospace; margin-bottom: 0.3rem; }
+.notification-item .notif-text { font-size: 0.88rem; color: var(--text); }
+.notification-item .notif-meta { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+.badge { display: inline-flex; align-items: center; padding: 0.15rem 0.55rem;
+  border-radius: 999px; font-size: 0.74rem; font-weight: 500; white-space: nowrap; }
+.badge-new { background: var(--primary-hi); color: var(--primary); }
+.badge-open { background: #dce4f5; color: #2d4a8a; }
+[data-theme="dark"] .badge-open { background: #1e2a45; color: #6687cc; }
+.badge-inprog { background: #fff3e0; color: #92500d; }
+[data-theme="dark"] .badge-inprog { background: #3a2610; color: #d4874a; }
+.badge-done { background: #d6eedd; color: #2e7d4f; }
+[data-theme="dark"] .badge-done { background: #1a3326; color: #4aaa72; }
+.badge-closed { background: var(--divider); color: var(--muted); }
+
+/* CASES */
+.case-item { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.1rem 1.25rem; margin-bottom: 0.75rem;
+  cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+.case-item:hover { box-shadow: var(--shadow); border-color: var(--primary); }
+.case-item-header { display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 1rem; }
+.case-item-title { font-size: 0.9rem; font-weight: 500; }
+.case-item-meta { font-size: 0.78rem; color: var(--muted); margin-top: 0.25rem; }
+.case-item-frage { font-size: 0.82rem; color: var(--muted); margin-top: 0.4rem;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.remote-label { display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.72rem; color: var(--primary); background: var(--primary-hi);
+  border-radius: 4px; padding: 0.1rem 0.45rem; margin-top: 0.35rem; }
+
+/* DID box */
+.did-box { background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.6rem 0.9rem; font-size: 0.78rem;
+  color: var(--muted); display: flex; gap: 0.5rem; align-items: flex-start; }
+.did-box code { color: var(--primary); font-size: 0.77rem; word-break: break-all; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+.empty-state svg { margin: 0 auto 1rem; opacity: 0.3; }
+.empty-state h3 { font-size: 0.95rem; margin-bottom: 0.4rem; color: var(--text); }
+.empty-state p { font-size: 0.84rem; }
+
+/* Toast */
+.toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem;
+  display: flex; flex-direction: column; gap: 0.5rem; z-index: 999; }
+.toast { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 0.75rem 1rem; font-size: 0.84rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12); max-width: 340px;
+  display: flex; align-items: flex-start; gap: 0.6rem;
+  animation: slide-in 0.22s ease; }
+.toast-success { border-left: 3px solid var(--success); }
+.toast-info { border-left: 3px solid var(--primary); }
+@keyframes slide-in { from{transform:translateX(1.5rem);opacity:0} to{transform:translateX(0);opacity:1} }
+
+/* Form */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+@media(max-width:560px) { .form-row { grid-template-columns: 1fr; } }
+.form-group-full { margin-bottom: 1.25rem; }
+.char-counter { font-size: 0.8rem; color: var(--muted); text-align: right; margin-top: 0.3rem; }
+.char-counter.warn { color: var(--warning); }
+.char-counter.over { color: var(--error); font-weight: 600; }
+.form-actions { display: flex; gap: 0.75rem; justify-content: flex-end;
+  padding-top: 1.25rem; border-top: 1px solid var(--divider); margin-top: 0.5rem; }
+.card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); }
+
+/* Section label */
+.section-label { font-size: 0.72rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.75rem; }
+
+/* Case Detail Modal */
+.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;
+  display:none;align-items:center;justify-content:center;padding:1rem; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);width:100%;max-width:680px;max-height:92vh;
+  display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.18); }
+.modal-header { padding:1.25rem 1.5rem 1rem;border-bottom:1px solid var(--divider);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+.modal-header h2 { font-size:0.95rem;font-weight:600; }
+.modal-body { overflow-y:auto;padding:1.25rem 1.5rem;flex:1; }
+.modal-footer { padding:1rem 1.5rem;border-top:1px solid var(--divider);
+  display:flex;gap:0.75rem;justify-content:flex-end;flex-shrink:0;flex-wrap:wrap; }
+
+/* Remote record read panel */
+.remote-panel { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1rem;margin-bottom:1.25rem; }
+.remote-panel .remote-header { display:flex;align-items:center;gap:0.5rem;
+  margin-bottom:0.75rem;font-size:0.78rem;color:var(--primary);font-weight:500; }
+.remote-panel .frage-text { font-size:0.9rem;color:var(--text);line-height:1.55; }
+.remote-panel .frage-meta { font-size:0.76rem;color:var(--muted);margin-top:0.5rem; }
+
+/* Process timeline */
+.timeline { display:flex;flex-direction:column;gap:0;margin-bottom:1.5rem; }
+.tl-item { display:flex;gap:0.85rem;align-items:flex-start; }
+.tl-dot-col { display:flex;flex-direction:column;align-items:center;flex-shrink:0; }
+.tl-dot { width:22px;height:22px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0; }
+.tl-dot.done { background:var(--success);color:#fff; }
+.tl-dot.active { background:var(--primary);color:#fff; }
+.tl-dot.pending { background:var(--surface2);color:var(--muted);border:1px solid var(--border); }
+.tl-line { width:2px;height:24px;background:var(--divider);margin:2px 0; }
+.tl-content { padding-top:2px;padding-bottom:14px; }
+.tl-content h4 { font-size:0.83rem;font-weight:600;margin-bottom:0.1rem; }
+.tl-content p { font-size:0.76rem;color:var(--muted); }
+
+/* Answer form */
+.answer-section { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1rem;margin-bottom:1rem; }
+.answer-section h3 { font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;
+  display:flex;align-items:center;gap:0.4rem; }
+.answer-draft { background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0.75rem;font-size:0.87rem;
+  color:var(--text);line-height:1.55;margin-bottom:0.75rem; }
+.answer-final { background:var(--surface);border:1px solid var(--border);
+  border-left:3px solid var(--success);
+  border-radius:var(--radius);padding:0.75rem;font-size:0.87rem;
+  color:var(--text);line-height:1.55;margin-bottom:0.75rem; }
+
+/* JSON block */
+.json-block { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0.9rem;font-size:0.75rem;font-family:monospace;
+  overflow-x:auto;white-space:pre;line-height:1.65;color:var(--text); }
+.json-key { color:#2d4a8a; }
+[data-theme="dark"] .json-key { color:#6687cc; }
+.json-str { color:#2e7d4f; }
+[data-theme="dark"] .json-str { color:#4aaa72; }
+.json-null { color:var(--faint);font-style:italic; }
+
+/* Finalize dialog */
+.finalize-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;
+  display:none;align-items:center;justify-content:center;padding:1rem; }
+.finalize-overlay.open { display:flex; }
+.finalize-dialog { background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);width:100%;max-width:540px;padding:1.75rem;
+  box-shadow:0 8px 32px rgba(0,0,0,0.18); }
+.meta-grid { display:grid;grid-template-columns:130px 1fr;gap:0.4rem 0.75rem;
+  font-size:0.79rem;color:var(--muted);background:var(--surface2);
+  border:1px solid var(--border);border-radius:var(--radius);padding:0.9rem;margin-bottom:1.25rem; }
+.meta-grid code { color:var(--primary);font-size:0.76rem;word-break:break-all; }
+
+@keyframes hash-anim { from{opacity:0;letter-spacing:.15em} to{opacity:1;letter-spacing:0} }
+.hash-anim { animation:hash-anim 0.5s ease; }
+
+/* Nachweis section */
+.nachweis-section { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1rem;margin-bottom:1rem; }
+.nachweis-section h3 { font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;
+  display:flex;align-items:center;gap:0.4rem; }
+
+/* Close case button — only active when all conditions met */
+.btn-close-case { background:var(--success);color:#fff; }
+.btn-close-case:hover { background:#1e5c35; }
+.btn-close-case:disabled { opacity:0.4;cursor:not-allowed;pointer-events:none; }
+
+/* Merkle root display */
+.merkle-box { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0.75rem 1rem;margin-top:0.75rem;
+  font-size:0.76rem;font-family:monospace;word-break:break-all; }
+.merkle-box .merkle-label { font-size:0.72rem;color:var(--muted);
+  font-family:var(--font);margin-bottom:0.25rem;font-weight:500; }
+.merkle-value { color:var(--primary); }
+
+/* Closed case banner */
+.closed-banner { background:linear-gradient(135deg,#d6eedd 0%,#edf5e9 100%);
+  border:1px solid #b3d9bf;border-radius:var(--radius);padding:1rem;
+  display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:1.25rem; }
+[data-theme="dark"] .closed-banner { background:linear-gradient(135deg,#1a3326 0%,#1e3a2e 100%);border-color:#2e5040; }
+.closed-banner .closed-icon { width:32px;height:32px;background:var(--success);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;color:#fff; }
+
+/* Nanopub turtle */
+.ttl-block { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0.9rem;font-size:0.73rem;font-family:monospace;
+  overflow-x:auto;white-space:pre;line-height:1.7;color:var(--text); }
+
+/* Modal tabs */
+.modal-tabs { display:flex;gap:0;border-bottom:1px solid var(--divider);margin-bottom:1rem; }
+.modal-tab-btn { background:none;border:none;border-bottom:2px solid transparent;
+  padding:0.45rem 0.85rem;font-size:0.79rem;color:var(--muted);cursor:pointer;
+  margin-bottom:-1px;transition:color 0.15s,border-color 0.15s; }
+.modal-tab-btn:hover { color:var(--text); }
+.modal-tab-btn.active { color:var(--primary);border-bottom-color:var(--primary);font-weight:500; }
+.modal-tab-pane { display:none; }
+.modal-tab-pane.active { display:block; }
+
+/* Journalist view enhanced */
+.journalist-card { background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:0.75rem;
+  box-shadow:var(--shadow); }
+.journalist-card .jc-header { display:flex;justify-content:space-between;
+  align-items:flex-start;gap:1rem;margin-bottom:0.75rem; }
+.journalist-card .jc-title { font-size:0.9rem;font-weight:600; }
+.journalist-card .jc-meta { font-size:0.76rem;color:var(--muted);margin-top:0.2rem; }
+.journalist-card .jc-qa { margin-top:0.75rem; }
+.journalist-card .jc-q { font-size:0.82rem;color:var(--muted);margin-bottom:0.4rem; }
+.journalist-card .jc-a { font-size:0.84rem;color:var(--text); }
+.nanopub-ref { font-size:0.72rem;color:var(--primary);margin-top:0.6rem;
+  font-family:monospace;word-break:break-all; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+          <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+        </svg>
+      </div>
+      <h1>Antwortmanagement</h1>
+      <p>Bundeskanzlei · RecordWeb PoC</p>
+    </div>
+    <div class="form-group">
+      <label for="login-input">Login-Name</label>
+      <input type="text" id="login-input" placeholder="z. B. daniel.wyss" autocomplete="off">
+      <div class="login-error" id="login-error"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Anmelden</button>
+    <div class="user-hints">
+      <p>Test-Accounts:</p>
+      <code onclick="fillLogin('daniel.wyss')">daniel.wyss — Sachbearbeiter</code>
+      <code onclick="fillLogin('sandra.huber')">sandra.huber — Bundesrätin EJPD</code>
+      <code onclick="fillLogin('lukas.meier')">lukas.meier — Journalist (read-only)</code>
+      <code onclick="fillLogin('admin.bk')">admin.bk — Admin</code>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen" style="display:none">
+  <header class="app-header">
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="7" width="20" height="14" rx="2"/>
+        <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+      </svg>
+      <div>
+        <span>Antwortmanagement</span>
+        <small style="display:block;font-size:0.7rem;color:var(--muted);margin-top:-2px">Bundeskanzlei · RecordWeb PoC</small>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="user-pill" id="user-pill"></span>
+      <span class="rolle-badge" id="rolle-badge"></span>
+      <button class="btn-icon" onclick="toggleTheme()" title="Theme">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+      <button class="btn-icon" onclick="doLogout()" title="Abmelden">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="main" id="main-content"></main>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const USERS = {
+  'daniel.wyss':          { name:'Daniel Wyss',      rolle:'Sachbearbeiter', did:'did:rwp:bk.admin.ch/users/daniel-wyss',     canCreateCase:true,  canAnswer:false, isJournalist:false },
+  'sandra.huber':         { name:'Sandra Huber',     rolle:'Bundesrätin EJPD', did:'did:rwp:bk.admin.ch/users/sandra-huber', canCreateCase:false, canAnswer:true,  isJournalist:false },
+  'admin.bk':             { name:'Admin BK',         rolle:'Admin',          did:'did:rwp:bk.admin.ch/users/admin',           canCreateCase:true,  canAnswer:true,  isJournalist:false },
+  'lukas.meier':          { name:'Lukas Meier',      rolle:'Journalist',     did:'did:rwp:lukas-meier.ch/journalist',         canCreateCase:false, canAnswer:false, isJournalist:true  }
+};
+
+// Mock LDN inbox: finalized questions from Fragenmanagement
+const LDN_INBOX = [
+  {
+    id: 'notif-a1b2c3d4', read: false,
+    published: '2026-09-08T14:31:01Z',
+    actor: 'did:rwp:parlament.ch/system/rwp-node',
+    record: {
+      did: 'did:rwp:parlament.ch/records/frage-a1b2c3d4-hs2026',
+      snapshotHash: 'sha256:e3f1a2b9c4d5e6f7a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6',
+      recordType: 'did:rwp:parlament.ch/schema/fragestunde-frage',
+      state: 'finalized',
+      owner: 'did:rwp:parlament.ch/users/maria-bernasconi',
+      payload: {
+        fragetext: 'Welche Massnahmen plant der Bundesrat, um die digitale Souveränität der Schweizer Verwaltung bei der Nutzung von Cloud-Diensten ausländischer Anbieter bis Ende 2027 zu stärken?',
+        session: 'Herbstsession 2026',
+        parlamentarier_did: 'did:rwp:parlament.ch/users/maria-bernasconi',
+        eingereicht_am: '2026-09-08T14:31:00Z',
+        departement_ziel: 'BK'
+      }
+    }
+  },
+  {
+    id: 'notif-b2c3d4e5', read: true,
+    published: '2026-09-07T10:12:00Z',
+    actor: 'did:rwp:parlament.ch/system/rwp-node',
+    record: {
+      did: 'did:rwp:parlament.ch/records/frage-b2c3d4e5-hs2026',
+      snapshotHash: 'sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2',
+      recordType: 'did:rwp:parlament.ch/schema/fragestunde-frage',
+      state: 'finalized',
+      owner: 'did:rwp:parlament.ch/users/thomas-frei',
+      payload: {
+        fragetext: 'Wie beurteilt der Bundesrat die aktuellen Fortschritte bei der Umsetzung der nationalen KI-Strategie und welche Massnahmen sind für 2027 geplant?',
+        session: 'Herbstsession 2026',
+        parlamentarier_did: 'did:rwp:parlament.ch/users/thomas-frei',
+        eingereicht_am: '2026-09-07T10:12:00Z',
+        departement_ziel: 'WBF'
+      }
+    }
+  }
+];
+
+let currentUser = null;
+let cases = [];
+
+function fillLogin(n) { document.getElementById('login-input').value = n; document.getElementById('login-error').textContent = ''; }
+
+function doLogin() {
+  const val = document.getElementById('login-input').value.trim();
+  if (USERS[val]) {
+    currentUser = { login: val, ...USERS[val] };
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('user-pill').textContent = currentUser.name;
+    document.getElementById('rolle-badge').textContent = currentUser.rolle;
+    renderMain();
+  } else {
+    document.getElementById('login-error').textContent = 'Unbekannter Login-Name.';
+  }
+}
+document.getElementById('login-input').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function doLogout() {
+  currentUser = null;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-input').value = '';
+}
+
+function toggleTheme() {
+  const h = document.documentElement;
+  h.setAttribute('data-theme', h.getAttribute('data-theme')==='dark'?'light':'dark');
+}
+
+function renderMain() {
+  const m = document.getElementById('main-content');
+  if (currentUser.isJournalist) { renderJournalistView(m); return; }
+  const tabs = currentUser.canCreateCase
+    ? [['inbox','LDN Inbox'],['cases','Cases'],['neue-case','Neuen Case erstellen']]
+    : [['cases','Meine Cases']];
+  m.innerHTML = `<div class="tabs">${tabs.map((t,i)=>`<button class="tab-btn${i===0?' active':''}" onclick="switchTab('${t[0]}')">${t[1]}</button>`).join('')}</div>`
+    + tabs.map((t,i)=>`<div id="tab-${t[0]}" class="tab-pane${i===0?' active':''}">${renderTabContent(t[0])}</div>`).join('');
+}
+
+function renderTabContent(tab) {
+  if (tab==='inbox') return renderInbox();
+  if (tab==='cases') return renderCases();
+  if (tab==='neue-case') return renderNeueCaseForm();
+  return '';
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    const ids = currentUser.canCreateCase ? ['inbox','cases','neue-case'] : ['cases'];
+    b.classList.toggle('active', ids[i]===tab);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('tab-'+tab);
+  if(el) el.classList.add('active');
+  if(tab==='cases') { const c=document.getElementById('tab-cases'); if(c) c.innerHTML=renderCases(); }
+  if(tab==='inbox') { const c=document.getElementById('tab-inbox'); if(c) c.innerHTML=renderInbox(); }
+}
+
+function renderInbox() {
+  const unread = LDN_INBOX.filter(n=>!n.read);
+  return `<div class="inbox-header"><h2>LDN Inbox <span style="font-size:0.78rem;color:var(--muted);font-weight:400">(did:rwp:bk.admin.ch/system/rwp-node)</span></h2>
+    ${unread.length?`<span class="badge badge-new">${unread.length} neu</span>`:''}</div>`
+    + LDN_INBOX.map(n=>`
+    <div class="notification-item ${n.read?'':'unread'}">
+      <div>
+        <div class="notif-source">${escHtml(n.actor)} · ${formatDate(n.published)}</div>
+        <div class="notif-text">${escHtml(n.record.payload.fragetext.slice(0,100))}…</div>
+        <div class="notif-meta">${escHtml(n.record.payload.session)} · Eingereicht von: ${escHtml(n.record.owner.split('/users/')[1]||n.record.owner)}</div>
+        <div class="remote-label">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+          Remote Record · ${escHtml(n.record.did)}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.4rem;align-items:flex-end">
+        ${n.read?'<span class="badge badge-closed">Gelesen</span>':'<span class="badge badge-new">Neu</span>'}
+        ${!caseExistsForFrage(n.record.did)?`<button class="btn btn-primary" style="font-size:0.78rem;padding:0.35rem 0.75rem" onclick="createCaseFromNotif('${n.id}')">Case erstellen</button>`:'<span class="badge badge-done">Case vorhanden</span>'}
+      </div>
+    </div>`).join('');
+}
+
+function renderCases() {
+  const mine = currentUser.canAnswer
+    ? cases.filter(c=>c.departement==='BK'||c.departement==='EJPD'||true)
+    : cases;
+  if (!mine.length) return '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><h3>Keine Cases</h3><p>Cases entstehen aus dem LDN Inbox.</p></div>';
+  return mine.map(c=>`
+    <div class="case-item" onclick="openCase('${c.id}')">
+      <div class="case-item-header">
+        <div>
+          <div class="case-item-title">Case #${c.id.slice(-6).toUpperCase()} · ${escHtml(c.departement)}</div>
+          <div class="case-item-meta">Eröffnet ${formatDate(c.created)} · ${escHtml(c.sachbearbeiter_did.split('/users/')[1]||c.sachbearbeiter_did)}</div>
+          <div class="case-item-frage">${escHtml(c.fragePayload.fragetext)}</div>
+          <div class="remote-label" style="margin-top:0.4rem">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+            Frage-Record: ${escHtml(c.frage_did.slice(0,50))}…
+          </div>
+        </div>
+        <span class="badge ${stateBadgeClass(c.state)}">${stateLabel(c.state)}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderNeueCaseForm() {
+  return `<div class="card">
+    <div style="margin-bottom:1.25rem"><div class="section-label">Neue LDN-Notification verknüpfen</div>
+    <p style="font-size:0.83rem;color:var(--muted)">Wählen Sie eine eingehende Notification aus dem Inbox, um daraus einen Case zu erstellen.</p></div>
+    <div class="form-group-full">
+      <label>Notification / Frage-Record</label>
+      <select id="sel-notif">${LDN_INBOX.filter(n=>!caseExistsForFrage(n.record.did)).map(n=>`<option value="${n.id}">${escHtml(n.record.payload.fragetext.slice(0,60))}… (${n.record.payload.session})</option>`).join('')||'<option disabled>Alle Notifications haben bereits einen Case</option>'}</select>
+    </div>
+    <div class="form-group-full">
+      <label>Departement zuweisen *</label>
+      <select id="sel-dept"><option value="">— wählen —</option>
+        ${['EDA','EDI','EJPD','VBS','EFD','WBF','UVEK','BK'].map(d=>`<option>${d}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="createCaseFromForm()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Case erstellen
+      </button>
+    </div>
+  </div>`;
+}
+
+function renderJournalistView(m) {
+  const closed = cases.filter(c=>c.state==='closed');
+  m.innerHTML = `<div style="margin-bottom:1.5rem">
+    <div class="section-label">Journalist-View — Nanopub-Subscription</div>
+    <p style="font-size:0.84rem;color:var(--muted)">Abonnierte Nanopublications von <code style="color:var(--primary)">did:rwp:bk.admin.ch/system/rwp-node</code> — nur abgeschlossene Cases.</p>
+  </div>
+  ${closed.length===0?'<div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><h3>Noch keine publizierten Cases</h3><p>Sobald ein Case abgeschlossen wird, erscheint er hier.</p></div>'
+  :closed.map(c=>`<div class="case-item">
+    <div class="case-item-header">
+      <div>
+        <div class="case-item-title">Case #${c.id.slice(-6).toUpperCase()} · ${escHtml(c.departement)} · ${escHtml(c.fragePayload.session)}</div>
+        <div class="case-item-meta">Abgeschlossen ${formatDate(c.closedAt)}</div>
+        <div class="case-item-frage"><strong>Frage:</strong> ${escHtml(c.fragePayload.fragetext)}</div>
+        ${c.antwortText?`<div class="case-item-frage" style="margin-top:0.35rem"><strong>Antwort:</strong> ${escHtml(c.antwortText)}</div>`:''}
+        <div style="font-size:0.72rem;color:var(--faint);margin-top:0.4rem">Merkle Root: ${c.merkleRoot||'—'}</div>
+      </div>
+      <span class="badge badge-closed">Abgeschlossen</span>
+    </div>
+  </div>`).join('')}`;
+}
+
+function caseExistsForFrage(did) { return cases.some(c=>c.frage_did===did); }
+
+function createCaseFromNotif(notifId) {
+  const n = LDN_INBOX.find(x=>x.id===notifId);
+  if(!n) return;
+  if(caseExistsForFrage(n.record.did)) { showToast('Case bereits vorhanden.','info'); return; }
+  n.read = true;
+  const id = 'case-'+Math.random().toString(36).slice(2,10);
+  cases.push({
+    id, state:'open',
+    frage_did: n.record.did,
+    frage_snapshotHash: n.record.snapshotHash,
+    fragePayload: n.record.payload,
+    departement: n.record.payload.departement_ziel||'BK',
+    sachbearbeiter_did: currentUser.did,
+    created: new Date().toISOString(),
+    antwortText: null, antwortDid: null, antwortHash: null,
+    nachweisRef: null, nachweisHash: null,
+    merkleRoot: null, closedAt: null
+  });
+  refreshCasesTab(); refreshInboxTab();
+  showToast('Case erstellt für Frage von '+n.record.owner.split('/users/')[1]+'.','success');
+}
+
+function createCaseFromForm() {
+  const notifId = document.getElementById('sel-notif')?.value;
+  const dept = document.getElementById('sel-dept')?.value;
+  if(!notifId||!dept) { showToast('Bitte Notification und Departement wählen.','info'); return; }
+  const n = LDN_INBOX.find(x=>x.id===notifId);
+  if(!n) return;
+  n.read=true;
+  const id='case-'+Math.random().toString(36).slice(2,10);
+  cases.push({
+    id, state:'open',
+    frage_did:n.record.did, frage_snapshotHash:n.record.snapshotHash,
+    fragePayload:n.record.payload, departement:dept,
+    sachbearbeiter_did:currentUser.did, created:new Date().toISOString(),
+    antwortText:null, antwortDid:null, antwortHash:null,
+    nachweisRef:null, nachweisHash:null, merkleRoot:null, closedAt:null
+  });
+  switchTab('cases');
+  showToast('Case erstellt und Departement '+dept+' zugewiesen.','success');
+}
+
+function openCase(id) {
+  const c = cases.find(x=>x.id===id);
+  if(!c) return;
+  showToast('Case #'+c.id.slice(-6).toUpperCase()+' — '+stateLabel(c.state)+' (Detailansicht folgt in Teil 2)','info');
+}
+
+function refreshCasesTab() {
+  const el = document.getElementById('tab-cases');
+  if(el) el.innerHTML = renderCases();
+}
+function refreshInboxTab() {
+  const el = document.getElementById('tab-inbox');
+  if(el) el.innerHTML = renderInbox();
+}
+
+function stateBadgeClass(s) {
+  return {open:'badge-open',in_bearbeitung:'badge-inprog',antwort_verfasst:'badge-inprog',closed:'badge-closed'}[s]||'badge-open';
+}
+function stateLabel(s) {
+  return {open:'Offen',in_bearbeitung:'In Bearbeitung',antwort_verfasst:'Antwort verfasst',closed:'Abgeschlossen'}[s]||s;
+}
+
+function showToast(msg,type='info') {
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  t.className='toast toast-'+type;
+  t.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px"><polyline points="20 6 9 17 4 12"/></svg><span>${escHtml(msg)}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>t.remove(),4000);
+}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function formatDate(iso){return iso?iso.replace('T',' ').slice(0,16)+' UTC':'';}
+
+// ── PART 2: Case Detail Modal + Antwort verfassen ─────────────────────────
+
+let activeCaseId = null;
+let antwortDraft = {};  // caseId -> text
+
+// Override openCase
+function openCase(id) {
+  const c = cases.find(x => x.id === id);
+  if (!c) return;
+  activeCaseId = id;
+  renderCaseModal(c);
+  document.getElementById('case-modal').classList.add('open');
+}
+
+function closeCaseModal() {
+  document.getElementById('case-modal').classList.remove('open');
+  activeCaseId = null;
+}
+
+function renderCaseModal(c) {
+  const canAnswer = currentUser.canAnswer || currentUser.login === 'admin.bk';
+  const canManage = currentUser.canCreateCase || currentUser.login === 'admin.bk';
+
+  // Header
+  document.getElementById('modal-case-title').textContent =
+    'Case #' + c.id.slice(-6).toUpperCase() + ' · ' + c.departement;
+
+  // Timeline
+  const tl = document.getElementById('modal-timeline');
+  const step = (done, active, n, title, sub) => `
+    <div class="tl-item">
+      <div class="tl-dot-col">
+        <div class="tl-dot ${done?'done':active?'active':'pending'}">${done?'✓':n}</div>
+        <div class="tl-line"></div>
+      </div>
+      <div class="tl-content"><h4>${title}</h4><p>${sub}</p></div>
+    </div>`;
+  tl.innerHTML = `<div class="timeline">
+    ${step(true,false,1,'Case eröffnet','Sachbearbeiter: '+escHtml(c.sachbearbeiter_did.split('/users/')[1]||c.sachbearbeiter_did)+' · '+formatDate(c.created))}
+    ${step(c.state!=='open',c.state==='open',2,'Antwort verfassen',c.antwortText?'Antwort '+(c.antwortHash?'finalisiert':'als Draft gespeichert'):'<em>Ausstehend</em>')}
+    ${step(c.state==='closed',c.state==='antwort_verfasst',3,'Nachweis der Vortragung',c.nachweisRef?escHtml(c.nachweisRef):'<em>Ausstehend</em>')}
+    ${step(c.state==='closed',false,4,'Case abgeschlossen',c.closedAt?formatDate(c.closedAt)+'<br><small style="font-size:0.72rem">Merkle Root: '+(c.merkleRoot||'—')+'</small>':'<em>Ausstehend</em>')}
+  </div>`;
+
+  // Remote Frage
+  document.getElementById('modal-frage').innerHTML = `
+    <div class="remote-panel">
+      <div class="remote-header">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+        Remote Record — keine lokale Kopie — gelesen via DID
+      </div>
+      <div class="frage-text">${escHtml(c.fragePayload.fragetext)}</div>
+      <div class="frage-meta">
+        ${escHtml(c.fragePayload.session)} · 
+        ${escHtml(c.fragePayload.parlamentarier_did.split('/users/')[1]||c.fragePayload.parlamentarier_did)} · 
+        ${formatDate(c.fragePayload.eingereicht_am)}
+        <br><span style="font-size:0.72rem;color:var(--faint)">${escHtml(c.frage_did)}</span>
+      </div>
+    </div>`;
+
+  // Antwort section
+  const ans = document.getElementById('modal-answer');
+  if (c.antwortHash) {
+    // Finalized
+    ans.innerHTML = `<div class="answer-section">
+      <h3><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Antwort (finalisiert)</h3>
+      <div class="answer-final">${escHtml(c.antwortText)}</div>
+      <div style="font-size:0.74rem;color:var(--faint)">snapshotHash: ${escHtml(c.antwortHash)}</div>
+    </div>`;
+  } else if (canAnswer && c.state !== 'closed') {
+    const draft = antwortDraft[c.id] || c.antwortText || '';
+    ans.innerHTML = `<div class="answer-section">
+      <h3>Antwort verfassen</h3>
+      <div class="form-group-full">
+        <label>Antworttext * (max. 500 Zeichen)</label>
+        <textarea id="txt-antwort" rows="4" maxlength="500"
+          oninput="updateAntwortCounter()"
+          placeholder="Antwort des Bundesrats …">${escHtml(draft)}</textarea>
+        <div class="char-counter" id="antwort-counter">${draft.length} / 500</div>
+      </div>
+      <div style="display:flex;gap:0.6rem;justify-content:flex-end">
+        <button class="btn btn-secondary" onclick="saveAntwortDraft('${c.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/></svg>
+          Als Draft speichern
+        </button>
+        <button class="btn btn-primary" onclick="openFinalizeAntwort('${c.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Als RWP-Record speichern …
+        </button>
+      </div>
+    </div>`;
+  } else if (!canAnswer && c.state !== 'closed') {
+    ans.innerHTML = `<div class="answer-section" style="text-align:center;padding:1.5rem">
+      <div style="font-size:0.84rem;color:var(--muted)">Antwort wird von Bundesrätin Sandra Huber verfasst.</div>
+      ${c.antwortText?'<div class="answer-draft" style="margin-top:0.75rem;text-align:left">'+escHtml(c.antwortText)+'</div>':''}
+    </div>`;
+  } else {
+    ans.innerHTML = '';
+  }
+
+  // Footer buttons
+  const footer = document.getElementById('modal-footer-btns');
+  footer.innerHTML = `<button class="btn btn-secondary" onclick="closeCaseModal()">Schliessen</button>`;
+}
+
+function updateAntwortCounter() {
+  const len = document.getElementById('txt-antwort')?.value.length || 0;
+  const el = document.getElementById('antwort-counter');
+  if (!el) return;
+  el.textContent = len + ' / 500';
+  el.className = 'char-counter' + (len >= 500 ? ' over' : len >= 420 ? ' warn' : '');
+}
+
+function saveAntwortDraft(caseId) {
+  const text = document.getElementById('txt-antwort')?.value.trim();
+  if (!text) { showToast('Bitte Antworttext eingeben.', 'info'); return; }
+  const c = cases.find(x => x.id === caseId);
+  if (!c) return;
+  c.antwortText = text;
+  c.state = 'in_bearbeitung';
+  antwortDraft[caseId] = text;
+  showToast('Antwort als Draft gespeichert.', 'success');
+  renderCaseModal(c);
+  refreshCasesTab();
+}
+
+async function openFinalizeAntwort(caseId) {
+  const text = document.getElementById('txt-antwort')?.value.trim();
+  if (!text) { showToast('Bitte Antworttext eingeben.', 'info'); return; }
+  const c = cases.find(x => x.id === caseId);
+  if (!c) return;
+
+  const now = new Date().toISOString();
+  const antwortId = 'antwort-' + Math.random().toString(36).slice(2, 10);
+  const antwortDid = 'did:rwp:bk.admin.ch/records/' + antwortId;
+
+  document.getElementById('fdlg-did').textContent = antwortDid;
+  document.getElementById('fdlg-type').textContent = 'did:rwp:bk.admin.ch/schema/fragestunde-antwort';
+  document.getElementById('fdlg-owner').textContent = currentUser.did;
+  document.getElementById('fdlg-frage').textContent = c.frage_did;
+  document.getElementById('fdlg-ts').textContent = now.replace('T', ' ').slice(0, 19) + ' UTC';
+  document.getElementById('fdlg-hash').textContent = 'wird berechnet …';
+
+  const payload = JSON.stringify({
+    antworttext: text,
+    frage_did: c.frage_did,
+    frage_snapshot_hash: c.frage_snapshotHash,
+    bundesrat_did: currentUser.did,
+    beantwortet_am: now
+  });
+  const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
+  const hashHex = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const snapshotHash = 'sha256:' + hashHex;
+  document.getElementById('fdlg-hash').textContent = snapshotHash;
+  document.getElementById('fdlg-hash').classList.add('hash-anim');
+
+  // Store pending
+  window._pendingAntwort = { caseId, text, antwortId, antwortDid, snapshotHash, now };
+
+  document.getElementById('finalize-dialog').classList.add('open');
+}
+
+function closeFinalizeDialog() {
+  document.getElementById('finalize-dialog').classList.remove('open');
+  window._pendingAntwort = null;
+}
+
+function confirmFinalizeAntwort() {
+  const p = window._pendingAntwort;
+  if (!p) return;
+  const c = cases.find(x => x.id === p.caseId);
+  if (!c) return;
+  c.antwortText = p.text;
+  c.antwortDid = p.antwortDid;
+  c.antwortHash = p.snapshotHash;
+  c.state = 'antwort_verfasst';
+  closeFinalizeDialog();
+  renderCaseModal(c);
+  refreshCasesTab();
+  showToast('Antwort finalisiert. Case-Status: Antwort verfasst.', 'success');
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('finalize-dialog').classList.contains('open')) closeFinalizeDialog();
+    else closeCaseModal();
+  }
+});
+
+// ── PART 3: Nachweis + Case-Abschluss + Merkle Root + Journalist ──────────
+
+// Extend renderCaseModal to include Nachweis section and close button
+const _origRenderCaseModal = renderCaseModal;
+function renderCaseModal(c) {
+  _origRenderCaseModal(c);
+
+  const canManage = currentUser.canCreateCase || currentUser.login === 'admin.bk';
+  const body = document.getElementById('modal-body-extra');
+
+  // Nachweis section — only after answer is finalized
+  if (c.antwortHash && c.state !== 'closed') {
+    if (canManage) {
+      body.innerHTML = c.nachweisHash
+        ? `<div class="nachweis-section">
+            <h3>✅ Vortragungsnachweis (finalisiert)</h3>
+            <div style="font-size:0.84rem;color:var(--text)">${escHtml(c.nachweisRef)}</div>
+            <div style="font-size:0.73rem;color:var(--faint);margin-top:0.3rem">snapshotHash: ${escHtml(c.nachweisHash)}</div>
+           </div>`
+        : `<div class="nachweis-section">
+            <h3>Vortragungsnachweis erfassen</h3>
+            <div class="form-group-full" style="margin-bottom:0.75rem">
+              <label>Protokollreferenz *</label>
+              <input type="text" id="inp-nachweis" placeholder="z. B. Amtsblatt Nr. 38/2026, Fragestunde HS, S. 47"
+                value="${escHtml(c.nachweisRef||'')}">
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" onclick="finalizeNachweis('${c.id}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Nachweis finalisieren
+              </button>
+            </div>
+           </div>`;
+    } else {
+      body.innerHTML = c.nachweisHash
+        ? `<div class="nachweis-section"><h3>✅ Vortragungsnachweis</h3><div style="font-size:0.84rem">${escHtml(c.nachweisRef)}</div></div>`
+        : `<div class="nachweis-section" style="text-align:center;padding:1rem"><div style="font-size:0.83rem;color:var(--muted)">Nachweis wird vom Sachbearbeiter erfasst.</div></div>`;
+    }
+  } else if (c.state === 'closed') {
+    body.innerHTML = renderClosedSummary(c);
+  } else {
+    body.innerHTML = '';
+  }
+
+  // Footer: close case button
+  const footer = document.getElementById('modal-footer-btns');
+  const canClose = c.antwortHash && c.nachweisHash && c.state !== 'closed' && canManage;
+  const closedStr = c.state === 'closed' ? '' :
+    `<button class="btn btn-close-case" ${canClose?'':'disabled'} onclick="closeCaseAction('${c.id}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      Case abschliessen${!canClose && c.state!=='closed' ? ' (Bedingungen nicht erfüllt)' : ''}
+    </button>`;
+  footer.innerHTML = closedStr + `<button class="btn btn-secondary" onclick="closeCaseModal()">Schliessen</button>`;
+}
+
+function renderClosedSummary(c) {
+  return `<div class="closed-banner">
+    <div class="closed-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div>
+      <div style="font-size:0.88rem;font-weight:600;margin-bottom:0.2rem">Case abgeschlossen</div>
+      <div style="font-size:0.78rem;color:var(--muted)">${formatDate(c.closedAt)}</div>
+    </div>
+  </div>
+  <div class="modal-tabs">
+    <button class="modal-tab-btn active" onclick="switchMTab('summary',this)">Zusammenfassung</button>
+    <button class="modal-tab-btn" onclick="switchMTab('nanopub',this)">Nanopublication</button>
+  </div>
+  <div id="mtab-summary" class="modal-tab-pane active">
+    <div style="font-size:0.82rem;margin-bottom:0.75rem;color:var(--muted);font-weight:500">Vortragungsnachweis</div>
+    <div style="font-size:0.84rem;margin-bottom:1rem">${escHtml(c.nachweisRef)}</div>
+    <div class="merkle-box">
+      <div class="merkle-label">Merkle Root — berechnet über [frage_hash + antwort_hash + nachweis_hash]</div>
+      <div class="merkle-value">${escHtml(c.merkleRoot||'—')}</div>
+    </div>
+  </div>
+  <div id="mtab-nanopub" class="modal-tab-pane">
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem">Publiziert in der Nanopub-Federation · Journalist Lukas Meier wurde notifiziert.</p>
+    <div class="ttl-block">${buildCaseNanopubTurtle(c)}</div>
+  </div>`;
+}
+
+function switchMTab(tab, btn) {
+  document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.modal-tab-pane').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const el = document.getElementById('mtab-' + tab);
+  if (el) el.classList.add('active');
+}
+
+async function finalizeNachweis(caseId) {
+  const ref = document.getElementById('inp-nachweis')?.value.trim();
+  if (!ref) { showToast('Bitte Protokollreferenz eingeben.', 'info'); return; }
+  const c = cases.find(x => x.id === caseId);
+  if (!c) return;
+  const now = new Date().toISOString();
+  const payload = JSON.stringify({
+    antwort_did: c.antwortDid,
+    antwort_snapshot_hash: c.antwortHash,
+    vorgetragen_am: now,
+    bestaetigt_durch_did: currentUser.did,
+    sitzung_protokoll_ref: ref
+  });
+  const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
+  const hashHex = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  c.nachweisRef = ref;
+  c.nachweisHash = 'sha256:' + hashHex;
+  showToast('Nachweis finalisiert. Case kann nun abgeschlossen werden.', 'success');
+  renderCaseModal(c);
+  refreshCasesTab();
+}
+
+async function closeCaseAction(caseId) {
+  const c = cases.find(x => x.id === caseId);
+  if (!c || !c.antwortHash || !c.nachweisHash) return;
+  // Compute Merkle root: SHA-256 of concatenated hashes
+  const concat = c.frage_snapshotHash + c.antwortHash + c.nachweisHash;
+  const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(concat));
+  const hashHex = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2,'0')).join('');
+  c.merkleRoot = 'sha256:' + hashHex;
+  c.state = 'closed';
+  c.closedAt = new Date().toISOString();
+  renderCaseModal(c);
+  refreshCasesTab();
+  refreshJournalistView();
+  showToast('Case abgeschlossen. Merkle Root berechnet. Nanopub publiziert — Lukas Meier notifiziert.', 'success');
+}
+
+function refreshJournalistView() {
+  // If journalist is logged in, re-render
+  if (currentUser && currentUser.isJournalist) {
+    renderJournalistView(document.getElementById('main-content'));
+  }
+}
+
+// Enhanced journalist view
+function renderJournalistView(m) {
+  const closed = cases.filter(c => c.state === 'closed');
+  m.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem">
+      <div>
+        <div class="section-label">Journalist-View — Nanopub-Subscription</div>
+        <p style="font-size:0.83rem;color:var(--muted)">Abonnierte Nanopublications von <code style="color:var(--primary)">did:rwp:bk.admin.ch/system/rwp-node</code></p>
+      </div>
+      ${closed.length ? `<span class="badge badge-done">${closed.length} publiziert</span>` : ''}
+    </div>
+    ${closed.length === 0
+      ? `<div class="empty-state">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <h3>Noch keine publizierten Cases</h3>
+          <p>Sobald das Antwortmanagement einen Case abschliesst, erscheint er hier als Nanopublication.</p>
+        </div>`
+      : closed.map(c => `
+        <div class="journalist-card">
+          <div class="jc-header">
+            <div>
+              <div class="jc-title">Fragestunde ${escHtml(c.fragePayload.session)} · ${escHtml(c.departement)}</div>
+              <div class="jc-meta">Abgeschlossen ${formatDate(c.closedAt)}</div>
+            </div>
+            <span class="badge badge-done">Publiziert</span>
+          </div>
+          <div class="jc-qa">
+            <div class="jc-q">🔵 Frage (${escHtml(c.fragePayload.parlamentarier_did.split('/users/')[1]||'Parlamentarier')})</div>
+            <div class="jc-a">${escHtml(c.fragePayload.fragetext)}</div>
+            <div class="jc-q" style="margin-top:0.65rem">🟢 Antwort (Bundesrat)</div>
+            <div class="jc-a">${escHtml(c.antwortText||'—')}</div>
+          </div>
+          <div class="nanopub-ref">Nanopub: https://np.recordweb.org/${c.id}# · Merkle Root: ${escHtml((c.merkleRoot||'').slice(0,40))}…</div>
+        </div>`).join('')}`;
+}
+
+function buildCaseNanopubTurtle(c) {
+  const np = 'https://np.recordweb.org/' + c.id + '#';
+  return escHtml(
+`@prefix np:   <http://www.nanopub.org/nschema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rwp:  <https://recordweb.org/ns/rwp#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix :     <${np}> .
+
+:Head {
+  : a np:Nanopublication ;
+    np:hasAssertion :Assertion ;
+    np:hasProvenance :Provenance ;
+    np:hasPublicationInfo :PubInfo .
+}
+
+:Assertion {
+  <did:rwp:bk.admin.ch/records/${c.id}>
+    a rwp:ClosedCase ;
+    rwp:frage_did <${c.frage_did}> ;
+    rwp:antwort_did <${c.antwortDid||'did:rwp:bk.admin.ch/records/antwort-pending'}> ;
+    rwp:merkleRoot "${c.merkleRoot||''}"^^xsd:string ;
+    rwp:departement "${c.departement}"^^xsd:string ;
+    rwp:session "${c.fragePayload.session}"^^xsd:string ;
+    rwp:state rwp:closed .
+}
+
+:Provenance {
+  :Assertion
+    prov:wasAttributedTo <did:rwp:bk.admin.ch/system/rwp-node> ;
+    prov:generatedAtTime "${c.closedAt||''}"^^xsd:dateTime .
+}
+
+:PubInfo {
+  : prov:wasAttributedTo <did:rwp:bk.admin.ch/system/rwp-node> ;
+    prov:generatedAtTime "${c.closedAt||''}"^^xsd:dateTime .
+}`);
+}
+</script>
+
+<!-- CASE DETAIL MODAL -->
+<div class="modal-overlay" id="case-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-case-title">Case</h2>
+      <button class="btn-icon" onclick="closeCaseModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-timeline"></div>
+      <div id="modal-frage"></div>
+      <div id="modal-answer"></div>
+      <div id="modal-body-extra"></div>
+
+    </div>
+    <div class="modal-footer" id="modal-footer-btns"></div>
+  </div>
+</div>
+
+<!-- FINALIZE ANTWORT DIALOG -->
+<div class="finalize-overlay" id="finalize-dialog">
+  <div class="finalize-dialog">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:0.3rem">Als RWP-Record speichern</h2>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem">Die Antwort wird unwiderruflich finalisiert und erhält eine permanente DID sowie einen kryptographischen Snapshot-Hash.</p>
+    <div class="meta-grid">
+      <span>Record-ID (DID)</span><code id="fdlg-did"></code>
+      <span>Record-Typ</span><code id="fdlg-type"></code>
+      <span>Eigentümer</span><code id="fdlg-owner"></code>
+      <span>Frage (via DID)</span><code id="fdlg-frage" style="font-size:0.72rem"></code>
+      <span>Zustand</span><span style="color:var(--success);font-weight:500">draft → <strong>finalized</strong></span>
+      <span>Zeitstempel</span><span id="fdlg-ts" style="color:var(--text)"></span>
+      <span>snapshotHash</span><span id="fdlg-hash" style="word-break:break-all;font-size:0.74rem;color:var(--text)"></span>
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeFinalizeDialog()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="confirmFinalizeAntwort()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Finalisieren (unwiderruflich)
+      </button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
