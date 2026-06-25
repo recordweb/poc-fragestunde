@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fragenmanagement — RecordWeb PoC</title>
+<style>
+:root {
+  --bg: #f7f6f2; --surface: #f9f8f5; --surface2: #fbfbf9;
+  --border: #d4d1ca; --divider: #dcd9d5;
+  --text: #28251d; --muted: #7a7974; --faint: #bab9b4;
+  --primary: #01696f; --primary-h: #0c4e54;
+  --primary-hi: #cedcd8;
+  --success: #437a22; --warning: #964219; --error: #a12c7b;
+  --radius: 0.5rem; --radius-lg: 0.75rem;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  --font: 'Inter', system-ui, sans-serif;
+}
+[data-theme="dark"] {
+  --bg: #171614; --surface: #1c1b19; --surface2: #201f1d;
+  --border: #393836; --divider: #262523;
+  --text: #cdccca; --muted: #797876; --faint: #5a5957;
+  --primary: #4f98a3; --primary-h: #227f8b;
+  --primary-hi: #313b3b;
+  --success: #6daa45; --warning: #bb653b; --error: #d163a7;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body { font-family: var(--font); background: var(--bg); color: var(--text);
+  min-height: 100dvh; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+button { cursor: pointer; font: inherit; border: none; }
+input, textarea, select { font: inherit; color: var(--text); background: var(--surface2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.5rem 0.75rem; width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s; }
+input:focus, textarea:focus, select:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(1,105,111,0.15); }
+label { font-size: 0.875rem; color: var(--muted); font-weight: 500;
+  display: block; margin-bottom: 0.35rem; }
+
+/* Layout */
+.app-header {
+  background: var(--surface); border-bottom: 1px solid var(--divider);
+  padding: 0 1.5rem; height: 56px; display: flex; align-items: center;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100;
+}
+.app-header .logo { display: flex; align-items: center; gap: 0.6rem; }
+.app-header .logo svg { color: var(--primary); }
+.app-header .logo span { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+.app-header .logo small { font-size: 0.75rem; color: var(--muted); }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.user-pill { background: var(--primary-hi); color: var(--primary-h);
+  border-radius: 999px; padding: 0.2rem 0.75rem; font-size: 0.8rem; font-weight: 500; }
+.btn-icon { background: none; border: none; padding: 0.4rem;
+  color: var(--muted); border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s; }
+.btn-icon:hover { background: var(--divider); color: var(--text); }
+
+.main { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1.1rem; border-radius: var(--radius); font-size: 0.875rem;
+  font-weight: 500; transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  white-space: nowrap; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-h); }
+.btn-secondary { background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--divider); }
+.btn-ghost { background: none; color: var(--muted); padding: 0.4rem 0.8rem; }
+.btn-ghost:hover { background: var(--divider); color: var(--text); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow); }
+
+/* Login Screen */
+#login-screen { display: flex; align-items: center; justify-content: center;
+  min-height: 100dvh; background: var(--bg); padding: 1rem; }
+.login-card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 2.5rem 2rem; width: 100%; max-width: 380px;
+  box-shadow: var(--shadow); }
+.login-card .brand { text-align: center; margin-bottom: 2rem; }
+.login-card .brand-icon { width: 48px; height: 48px; background: var(--primary);
+  border-radius: var(--radius-lg); display: flex; align-items: center;
+  justify-content: center; margin: 0 auto 0.75rem; }
+.login-card .brand-icon svg { color: #fff; }
+.login-card h1 { font-size: 1.15rem; font-weight: 600; margin-bottom: 0.25rem; }
+.login-card p { font-size: 0.85rem; color: var(--muted); }
+.form-group { margin-bottom: 1.25rem; }
+.login-error { color: var(--error); font-size: 0.82rem; margin-top: 0.4rem;
+  min-height: 1.2rem; }
+.user-hints { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--divider); }
+.user-hints p { font-size: 0.78rem; color: var(--faint); margin-bottom: 0.5rem; }
+.user-hints code { background: var(--surface2); padding: 0.15rem 0.4rem;
+  border-radius: 4px; font-size: 0.78rem; color: var(--muted);
+  display: block; margin-bottom: 0.3rem; cursor: pointer;
+  border: 1px solid var(--border); }
+.user-hints code:hover { border-color: var(--primary); color: var(--primary); }
+
+/* App Screen */
+#app-screen { display: none; }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--divider);
+  margin-bottom: 1.75rem; }
+.tab-btn { background: none; border: none; border-bottom: 2px solid transparent;
+  padding: 0.65rem 1.1rem; font-size: 0.875rem; color: var(--muted);
+  cursor: pointer; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary);
+  font-weight: 500; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* Question form */
+.new-frage-header { display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 1.5rem; }
+.new-frage-header h2 { font-size: 1.05rem; font-weight: 600; }
+.char-counter { font-size: 0.8rem; color: var(--muted); text-align: right;
+  margin-top: 0.35rem; }
+.char-counter.warn { color: var(--warning); }
+.char-counter.over { color: var(--error); font-weight: 600; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  margin-bottom: 1.25rem; }
+@media(max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+.form-group-full { margin-bottom: 1.25rem; }
+.form-actions { display: flex; gap: 0.75rem; justify-content: flex-end;
+  padding-top: 1.25rem; border-top: 1px solid var(--divider); margin-top: 0.5rem; }
+
+/* Fragen Liste */
+.fragen-list { display: flex; flex-direction: column; gap: 0.75rem; }
+.frage-item { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1rem 1.25rem;
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 0.5rem 1rem; align-items: start;
+  transition: box-shadow 0.15s; cursor: pointer; }
+.frage-item:hover { box-shadow: var(--shadow); border-color: var(--primary); }
+.frage-item .frage-text { font-size: 0.9rem; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; }
+.frage-item .frage-meta { font-size: 0.78rem; color: var(--muted);
+  margin-top: 0.3rem; }
+.badge { display: inline-flex; align-items: center; padding: 0.15rem 0.55rem;
+  border-radius: 999px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+.badge-draft { background: #f3f0ec; color: var(--warning); }
+[data-theme="dark"] .badge-draft { background: #3a2e1e; }
+.badge-final { background: #d4dfcc; color: var(--success); }
+[data-theme="dark"] .badge-final { background: #2a3a20; }
+
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+.empty-state svg { margin: 0 auto 1rem; opacity: 0.35; }
+.empty-state h3 { font-size: 0.95rem; margin-bottom: 0.4rem; color: var(--text); }
+.empty-state p { font-size: 0.85rem; }
+
+/* DID info box */
+.did-box { background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.65rem 0.9rem;
+  font-size: 0.78rem; color: var(--muted); margin-top: 1rem;
+  display: flex; gap: 0.5rem; align-items: flex-start; }
+.did-box code { color: var(--primary); font-size: 0.78rem; word-break: break-all; }
+
+/* Toast */
+.toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem;
+  display: flex; flex-direction: column; gap: 0.5rem; z-index: 999; }
+.toast { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 0.75rem 1rem;
+  font-size: 0.85rem; box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  max-width: 320px; display: flex; align-items: flex-start; gap: 0.6rem;
+  animation: slide-in 0.25s ease; }
+.toast-success { border-left: 3px solid var(--success); }
+.toast-info { border-left: 3px solid var(--primary); }
+@keyframes slide-in { from { transform: translateX(1.5rem); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; } }
+
+/* Record Detail Modal */
+.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;
+  display:none;align-items:center;justify-content:center;padding:1rem; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);width:100%;max-width:640px;max-height:90vh;
+  display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.18); }
+.modal-header { padding:1.25rem 1.5rem 1rem;border-bottom:1px solid var(--divider);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
+.modal-header h2 { font-size:0.95rem;font-weight:600; }
+.modal-body { overflow-y:auto;padding:1.25rem 1.5rem;flex:1; }
+.modal-footer { padding:1rem 1.5rem;border-top:1px solid var(--divider);
+  display:flex;gap:0.75rem;justify-content:flex-end;flex-shrink:0; }
+
+/* JSON viewer */
+.json-block { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1rem;font-size:0.78rem;font-family:monospace;
+  overflow-x:auto;white-space:pre;line-height:1.6;color:var(--text); }
+.json-key { color:#01696f; }
+[data-theme="dark"] .json-key { color:#4f98a3; }
+.json-str { color:#437a22; }
+[data-theme="dark"] .json-str { color:#6daa45; }
+.json-num { color:#964219; }
+[data-theme="dark"] .json-num { color:#bb653b; }
+.json-null { color:var(--faint); font-style:italic; }
+
+/* Process steps */
+.process-steps { display:flex;flex-direction:column;gap:0;margin-bottom:1.25rem; }
+.step { display:flex;gap:0.9rem;align-items:flex-start; }
+.step-line { display:flex;flex-direction:column;align-items:center;flex-shrink:0; }
+.step-dot { width:24px;height:24px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:0.72rem;font-weight:600;flex-shrink:0; }
+.step-dot.done { background:var(--success);color:#fff; }
+.step-dot.active { background:var(--primary);color:#fff; }
+.step-dot.pending { background:var(--surface2);color:var(--muted);border:1px solid var(--border); }
+.step-connector { width:2px;height:28px;background:var(--divider);margin:2px 0; }
+.step-content { padding-top:3px;padding-bottom:16px; }
+.step-content h4 { font-size:0.85rem;font-weight:600;margin-bottom:0.15rem; }
+.step-content p { font-size:0.78rem;color:var(--muted); }
+
+/* Hash reveal animation */
+@keyframes hash-reveal { from{opacity:0;letter-spacing:0.2em} to{opacity:1;letter-spacing:0} }
+.hash-animated { animation:hash-reveal 0.6s ease; }
+
+/* Solid pod section */
+.solid-box { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:0.9rem 1rem;margin-top:1rem;
+  display:flex;align-items:flex-start;gap:0.75rem; }
+.solid-box .solid-icon { width:32px;height:32px;background:var(--primary-hi);
+  border-radius:var(--radius);display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;color:var(--primary); }
+.solid-box .solid-text { font-size:0.8rem;color:var(--muted); }
+.solid-box .solid-text strong { color:var(--text);display:block;margin-bottom:0.2rem; }
+
+/* LDN / Nanopub tabs inside modal */
+.modal-tabs { display:flex;gap:0;border-bottom:1px solid var(--divider);margin-bottom:1rem; }
+.modal-tab-btn { background:none;border:none;border-bottom:2px solid transparent;
+  padding:0.5rem 0.9rem;font-size:0.8rem;color:var(--muted);cursor:pointer;
+  margin-bottom:-1px;transition:color 0.15s,border-color 0.15s; }
+.modal-tab-btn:hover { color:var(--text); }
+.modal-tab-btn.active { color:var(--primary);border-bottom-color:var(--primary);font-weight:500; }
+.modal-tab-pane { display:none; }
+.modal-tab-pane.active { display:block; }
+
+/* Turtle / Notification highlight */
+.ttl-block { background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:1rem;font-size:0.75rem;font-family:monospace;
+  overflow-x:auto;white-space:pre;line-height:1.7;color:var(--text); }
+.ttl-prefix { color:var(--muted); }
+.ttl-uri { color:#01696f; }
+[data-theme="dark"] .ttl-uri { color:#4f98a3; }
+.ttl-literal { color:#437a22; }
+[data-theme="dark"] .ttl-literal { color:#6daa45; }
+.ttl-keyword { color:#964219;font-weight:600; }
+[data-theme="dark"] .ttl-keyword { color:#bb653b; }
+
+/* Notification banner in list */
+.ldn-badge { display:inline-flex;align-items:center;gap:0.3rem;
+  background:var(--primary-hi);color:var(--primary-h);
+  border-radius:999px;padding:0.12rem 0.55rem;font-size:0.72rem;font-weight:500; }
+[data-theme="dark"] .ldn-badge { background:var(--primary-hi);color:var(--primary); }
+
+/* Keyboard shortcut hint */
+.kbd { display:inline-block;background:var(--surface2);border:1px solid var(--border);
+  border-radius:4px;padding:0.05rem 0.4rem;font-size:0.72rem;font-family:monospace;
+  color:var(--muted);line-height:1.6; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/>
+          <line x1="9" y1="15" x2="15" y2="15"/>
+        </svg>
+      </div>
+      <h1>Fragenmanagement</h1>
+      <p>Parlamentsdienste Schweiz · RecordWeb PoC</p>
+    </div>
+    <div class="form-group">
+      <label for="login-input">Login-Name</label>
+      <input type="text" id="login-input" placeholder="z. B. maria.bernasconi" autocomplete="off">
+      <div class="login-error" id="login-error"></div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Anmelden</button>
+    <div class="user-hints">
+      <p>Test-Accounts (klicken zum Einfügen):</p>
+      <code onclick="fillLogin('maria.bernasconi')">maria.bernasconi — Nationalrätin</code>
+      <code onclick="fillLogin('thomas.frei')">thomas.frei — Nationalrat</code>
+      <code onclick="fillLogin('admin.parlamentsdienste')">admin.parlamentsdienste — Admin</code>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <header class="app-header">
+    <div class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      <div>
+        <span>Fragenmanagement</span>
+        <small style="display:block;font-size:0.7rem;color:var(--muted);margin-top:-2px">Parlamentsdienste · RecordWeb PoC</small>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="user-pill" id="user-pill"></span>
+      <button class="btn-icon" onclick="toggleTheme()" title="Theme wechseln">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+      <button class="btn-icon" onclick="doLogout()" title="Abmelden">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('meine-fragen')">Meine Fragen</button>
+      <button class="tab-btn" onclick="switchTab('neue-frage')">Neue Frage</button>
+    </div>
+
+    <!-- Tab: Meine Fragen -->
+    <div id="tab-meine-fragen" class="tab-pane active">
+      <div id="fragen-list-container"></div>
+    </div>
+
+    <!-- Tab: Neue Frage -->
+    <div id="tab-neue-frage" class="tab-pane">
+      <div class="new-frage-header">
+        <h2>Frage formulieren</h2>
+      </div>
+      <div class="card">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sel-session">Session *</label>
+            <select id="sel-session">
+              <option value="">— Session wählen —</option>
+              <option value="Herbstsession 2026">Herbstsession 2026</option>
+              <option value="Wintersession 2026">Wintersession 2026</option>
+              <option value="Frühjahrssession 2027">Frühjahrssession 2027</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="sel-departement">Departement (optional)</label>
+            <select id="sel-departement">
+              <option value="">— kein Ziel —</option>
+              <option>EDA</option><option>EDI</option><option>EJPD</option>
+              <option>VBS</option><option>EFD</option><option>WBF</option>
+              <option>UVEK</option><option>BK</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group-full">
+          <label for="txt-frage">Fragetext * <span style="font-weight:400">(max. 500 Zeichen)</span></label>
+          <textarea id="txt-frage" rows="5" maxlength="500"
+            placeholder="Formulieren Sie Ihre Frage an den Bundesrat …"
+            oninput="updateCounter()"></textarea>
+          <div class="char-counter" id="char-counter">0 / 500</div>
+        </div>
+        <div class="did-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-top:1px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>Einreichende Person: <code id="did-display"></code></div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="saveDraft()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Als Draft speichern
+          </button>
+          <button class="btn btn-primary" onclick="openFinalizeDialog()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="16 13 12 17 8 13"/><line x1="12" y1="17" x2="12" y2="11"/></svg>
+            Als RWP-Record speichern …
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- FINALIZE DIALOG -->
+<div id="finalize-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);width:100%;max-width:560px;padding:1.75rem;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:0.35rem">Als RWP-Record speichern</h2>
+    <p style="font-size:0.83rem;color:var(--muted);margin-bottom:1.25rem">
+      Dieser Vorgang finalisiert Ihre Frage unwiderruflich. Der Record erhält eine permanente DID und einen kryptographischen Snapshot-Hash.
+    </p>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;font-size:0.8rem;margin-bottom:1.25rem;">
+      <div style="display:grid;grid-template-columns:140px 1fr;gap:0.4rem 0.75rem;color:var(--muted);">
+        <span>Record-ID (DID)</span><code id="dlg-did" style="color:var(--primary);word-break:break-all;font-size:0.78rem"></code>
+        <span>Record-Typ</span><code style="color:var(--primary);font-size:0.78rem">did:rwp:parlament.ch/schema/fragestunde-frage</code>
+        <span>Zustand</span><span style="color:var(--success);font-weight:500">draft → <strong>finalized</strong></span>
+        <span>Eigentümer</span><code id="dlg-owner" style="color:var(--primary);font-size:0.78rem;word-break:break-all"></code>
+        <span>Session</span><span id="dlg-session" style="color:var(--text)"></span>
+        <span>Zeitstempel</span><span id="dlg-ts" style="color:var(--text)"></span>
+        <span>snapshotHash</span><span id="dlg-hash" style="color:var(--text);word-break:break-all;font-size:0.75rem">wird berechnet …</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeFinalizeDialog()">Abbrechen</button>
+      <button class="btn btn-primary" id="btn-confirm-finalize" onclick="confirmFinalize()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Finalisieren (unwiderruflich)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const USERS = {
+  'maria.bernasconi': { name: 'Maria Bernasconi', rolle: 'Nationalrätin', did: 'did:rwp:parlament.ch/users/maria-bernasconi' },
+  'thomas.frei':      { name: 'Thomas Frei',      rolle: 'Nationalrat',   did: 'did:rwp:parlament.ch/users/thomas-frei' },
+  'admin.parlamentsdienste': { name: 'Admin',     rolle: 'Admin',         did: 'did:rwp:parlament.ch/users/admin' }
+};
+
+let currentUser = null;
+let fragen = [];
+let pendingRecord = null;
+
+function fillLogin(name) {
+  document.getElementById('login-input').value = name;
+  document.getElementById('login-error').textContent = '';
+}
+
+function doLogin() {
+  const val = document.getElementById('login-input').value.trim();
+  if (USERS[val]) {
+    currentUser = { login: val, ...USERS[val] };
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('user-pill').textContent = currentUser.name + ' · ' + currentUser.rolle;
+    document.getElementById('did-display').textContent = currentUser.did;
+    renderFragenList();
+  } else {
+    document.getElementById('login-error').textContent = 'Unbekannter Login-Name. Bitte einen der Test-Accounts verwenden.';
+  }
+}
+
+document.getElementById('login-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function doLogout() {
+  currentUser = null; fragen = [];
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-input').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  html.setAttribute('data-theme', html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['meine-fragen','neue-frage'][i] === tab);
+  });
+  document.getElementById('tab-meine-fragen').classList.toggle('active', tab === 'meine-fragen');
+  document.getElementById('tab-neue-frage').classList.toggle('active', tab === 'neue-frage');
+}
+
+function updateCounter() {
+  const len = document.getElementById('txt-frage').value.length;
+  const el = document.getElementById('char-counter');
+  el.textContent = len + ' / 500';
+  el.className = 'char-counter' + (len >= 500 ? ' over' : len >= 420 ? ' warn' : '');
+}
+
+function saveDraft() {
+  const text = document.getElementById('txt-frage').value.trim();
+  const session = document.getElementById('sel-session').value;
+  if (!text) { showToast('Bitte Fragetext eingeben.', 'info'); return; }
+  if (!session) { showToast('Bitte Session wählen.', 'info'); return; }
+  const dept = document.getElementById('sel-departement').value;
+  const id = 'frage-' + Math.random().toString(36).slice(2,10);
+  fragen.push({
+    id, did: 'did:rwp:parlament.ch/records/' + id,
+    state: 'draft', text, session, dept,
+    owner: currentUser.did,
+    created: new Date().toISOString(), finalized: null,
+    snapshotHash: null
+  });
+  resetForm();
+  switchTab('meine-fragen');
+  renderFragenList();
+  showToast('Draft gespeichert.', 'success');
+}
+
+function resetForm() {
+  document.getElementById('txt-frage').value = '';
+  document.getElementById('sel-session').value = '';
+  document.getElementById('sel-departement').value = '';
+  updateCounter();
+}
+
+function renderFragenList() {
+  const c = document.getElementById('fragen-list-container');
+  const mine = fragen.filter(f => f.owner === currentUser.did);
+  if (mine.length === 0) {
+    c.innerHTML = '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h3>Noch keine Fragen</h3><p>Wechseln Sie zu «Neue Frage», um Ihre erste Frage zu formulieren.</p></div>';
+    return;
+  }
+  c.innerHTML = '<div class="fragen-list">' + mine.map(f => `
+    <div class="frage-item" onclick="showDetail('${f.id}')">
+      <div>
+        <div class="frage-text">${escHtml(f.text)}</div>
+        <div class="frage-meta">${escHtml(f.session)}${f.dept ? ' · ' + f.dept : ''} · ${formatDate(f.created)}</div>
+        ${f.snapshotHash ? '<div class="frage-meta" style="margin-top:0.2rem;font-size:0.73rem;color:var(--faint)">Hash: ' + f.snapshotHash.slice(0,28) + '…</div>' : ''}
+      </div>
+      <span class="badge ${f.state === 'draft' ? 'badge-draft' : 'badge-final'}">${f.state === 'draft' ? 'Draft' : 'Finalisiert'}</span>
+    </div>`).join('') + '</div>';
+}
+
+function showDetail(id) {
+  const f = fragen.find(x => x.id === id);
+  if (!f) return;
+  showToast((f.state === 'draft' ? 'Draft: ' : 'Finalisiert: ') + f.text.slice(0,60) + '…', 'info');
+}
+
+async function openFinalizeDialog() {
+  const text = document.getElementById('txt-frage').value.trim();
+  const session = document.getElementById('sel-session').value;
+  if (!text) { showToast('Bitte Fragetext eingeben.', 'info'); return; }
+  if (!session) { showToast('Bitte Session wählen.', 'info'); return; }
+  const dept = document.getElementById('sel-departement').value;
+  const id = 'frage-' + Math.random().toString(36).slice(2,10);
+  const now = new Date().toISOString();
+  pendingRecord = {
+    id, did: 'did:rwp:parlament.ch/records/' + id,
+    state: 'finalized', text, session, dept,
+    owner: currentUser.did, created: now, finalized: now
+  };
+  document.getElementById('dlg-did').textContent = pendingRecord.did;
+  document.getElementById('dlg-owner').textContent = pendingRecord.owner;
+  document.getElementById('dlg-session').textContent = session;
+  document.getElementById('dlg-ts').textContent = now.replace('T',' ').slice(0,19) + ' UTC';
+  document.getElementById('dlg-hash').textContent = 'wird berechnet …';
+  const overlay = document.getElementById('finalize-overlay');
+  overlay.style.display = 'flex';
+  const payload = JSON.stringify({ fragetext: text, session, parlamentarier_did: currentUser.did, eingereicht_am: now, departement_ziel: dept || undefined });
+  const hashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload));
+  const hashHex = Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  pendingRecord.snapshotHash = 'sha256:' + hashHex;
+  document.getElementById('dlg-hash').textContent = 'sha256:' + hashHex;
+}
+
+function closeFinalizeDialog() {
+  document.getElementById('finalize-overlay').style.display = 'none';
+  pendingRecord = null;
+}
+
+function confirmFinalize() {
+  if (!pendingRecord) return;
+  fragen.push({ ...pendingRecord });
+  document.getElementById('finalize-overlay').style.display = 'none';
+  resetForm();
+  switchTab('meine-fragen');
+  renderFragenList();
+  showToast('Frage finalisiert. LDN-Notification an did:rwp:bk.admin.ch gesendet.', 'success');
+  pendingRecord = null;
+}
+
+function showToast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + type;
+  t.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><polyline points="20 6 9 17 4 12"/></svg><span>${escHtml(msg)}</span>`;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatDate(iso) {
+  return iso ? iso.replace('T',' ').slice(0,16) + ' UTC' : '';
+}
+
+// ── PART 2: Record Detail Modal ──────────────────────────────────────────────
+
+function showDetail(id) {
+  const f = fragen.find(x => x.id === id);
+  if (!f) return;
+  openRecordModal(f);
+}
+
+function openRecordModal(f) {
+  const modal = document.getElementById('record-modal');
+  document.getElementById('modal-title').textContent =
+    f.state === 'draft' ? '📄 Draft-Record' : '✅ Finalisierter RWP-Record';
+
+  // Process steps
+  const steps = document.getElementById('modal-steps');
+  steps.innerHTML = `
+    <div class="process-steps">
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot done">✓</div>
+          <div class="step-connector"></div>
+        </div>
+        <div class="step-content">
+          <h4>Frage verfasst</h4>
+          <p>${escHtml(f.session)}${f.dept ? ' · ' + f.dept : ''} · ${formatDate(f.created)}</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot ${f.state === 'finalized' ? 'done' : 'pending'}">${f.state === 'finalized' ? '✓' : '2'}</div>
+          ${f.state === 'finalized' ? '<div class="step-connector"></div>' : ''}
+        </div>
+        <div class="step-content">
+          <h4>Als RWP-Record gespeichert (finalized)</h4>
+          <p>${f.state === 'finalized' ? 'Snapshot-Hash berechnet · LDN-Notification gesendet · ' + formatDate(f.finalized) : '<em>Noch nicht finalisiert</em>'}</p>
+        </div>
+      </div>
+      ${f.state === 'finalized' ? `
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot pending">3</div>
+        </div>
+        <div class="step-content">
+          <h4>Antwort erhalten</h4>
+          <p><em>Wartet auf Antwortmanagement (did:rwp:bk.admin.ch)</em></p>
+        </div>
+      </div>` : ''}
+    </div>`;
+
+  // JSON record
+  const record = buildRecordJson(f);
+  document.getElementById('modal-json').innerHTML = syntaxHighlight(JSON.stringify(record, null, 2));
+
+  // Solid pod section
+  const solidSection = document.getElementById('modal-solid');
+  if (f.state === 'finalized') {
+    solidSection.style.display = 'block';
+    solidSection.innerHTML = `
+      <div class="solid-box">
+        <div class="solid-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </div>
+        <div class="solid-text">
+          <strong>In Solid Pod verlinken (simuliert)</strong>
+          Dieser Record kann als kryptographisch gesicherter Pointer in Ihrem persönlichen Solid Pod gespeichert werden — kein Inhaltskopie, nur DID + snapshotHash.
+          <div style="margin-top:0.5rem">
+            <button class="btn btn-secondary" style="font-size:0.78rem;padding:0.3rem 0.75rem" onclick="simulateSolidLink('${f.id}')">
+              → In Solid Pod verlinken
+            </button>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    solidSection.style.display = 'none';
+  }
+
+  // Download button
+  document.getElementById('btn-download').onclick = () => downloadRecord(f);
+  document.getElementById('btn-download').style.display = f.state === 'finalized' ? 'inline-flex' : 'none';
+
+  modal.classList.add('open');
+}
+
+function closeRecordModal() {
+  document.getElementById('record-modal').classList.remove('open');
+}
+
+function buildRecordJson(f) {
+  const payload = {
+    fragetext: f.text,
+    session: f.session,
+    parlamentarier_did: f.owner,
+    eingereicht_am: f.created
+  };
+  if (f.dept) payload.departement_ziel = f.dept;
+
+  return {
+    did: f.did,
+    snapshotHash: f.snapshotHash || null,
+    recordType: "did:rwp:parlament.ch/schema/fragestunde-frage",
+    schemaVersion: "sha256:a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+    state: f.state,
+    created: f.created,
+    finalized: f.finalized || null,
+    owner: f.owner,
+    parents: [],
+    payloadHash: f.snapshotHash ? f.snapshotHash.replace('sha256:', 'sha256:payload-') : null,
+    payloadFormat: "application/json",
+    signature: f.state === 'finalized' ? "z_PLACEHOLDER_PoC_Ed25519" : null,
+    payload
+  };
+}
+
+function syntaxHighlight(json) {
+  return json
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/("(\u[a-zA-Z0-9]{4}|\[^u]|[^\"])*"(\s*:)?|(true|false|null)|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (match) => {
+      let cls = 'json-num';
+      if (/^"/.test(match)) { cls = /:$/.test(match) ? 'json-key' : 'json-str'; }
+      else if (/null/.test(match)) { cls = 'json-null'; }
+      return `<span class="${cls}">${match}</span>`;
+    });
+}
+
+function downloadRecord(f) {
+  const record = buildRecordJson(f);
+  const blob = new Blob([JSON.stringify(record, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = f.id + '.rwp.json';
+  a.click();
+  showToast('Record als .rwp.json heruntergeladen.', 'success');
+}
+
+function simulateSolidLink(id) {
+  const f = fragen.find(x => x.id === id);
+  if (!f) return;
+  const podRef = {
+    "@context": "https://recordweb.org/ns/citizen-reference/v1",
+    "type": "RecordWebCaseReference",
+    "created": new Date().toISOString(),
+    "subject": f.text.slice(0, 60) + '…',
+    "recordReference": {
+      "did": f.did,
+      "snapshotHash": f.snapshotHash,
+      "recordType": "did:rwp:parlament.ch/schema/fragestunde-frage"
+    },
+    "issuedBy": "did:rwp:parlament.ch/system/rwp-node",
+    "storedIn": "https://solid." + f.owner.split('/users/')[1] + ".ch/pod/fragestunden/"
+  };
+  const blob = new Blob([JSON.stringify(podRef, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = f.id + '.solid-reference.json';
+  a.click();
+  showToast('Solid-Pod-Referenz erstellt (simuliert). Kein Inhalt — nur DID-Pointer.', 'success');
+}
+
+// Close modal on overlay click
+document.addEventListener('click', e => {
+  const overlay = document.getElementById('record-modal');
+  if (e.target === overlay) closeRecordModal();
+});
+
+// ── PART 3: LDN Notification + Nanopub + Polish ───────────────────────────
+
+// Override openRecordModal to add tabs
+const _origOpenRecordModal = openRecordModal;
+function openRecordModal(f) {
+  const modal = document.getElementById('record-modal');
+  document.getElementById('modal-title').textContent =
+    f.state === 'draft' ? '📄 Draft-Record' : '✅ Finalisierter RWP-Record';
+
+  // Process steps
+  const steps = document.getElementById('modal-steps');
+  steps.innerHTML = buildStepsHtml(f);
+
+  // Tab content
+  const jsonRecord = buildRecordJson(f);
+  const jsonHtml = syntaxHighlight(JSON.stringify(jsonRecord, null, 2));
+  const ldnHtml = f.state === 'finalized' ? buildLdnHtml(f) : '<p style="font-size:0.82rem;color:var(--muted);padding:0.5rem 0">Nur für finalisierte Records verfügbar.</p>';
+  const nanopubHtml = f.state === 'finalized' ? buildNanopubHtml(f) : '<p style="font-size:0.82rem;color:var(--muted);padding:0.5rem 0">Nur für finalisierte Records verfügbar.</p>';
+
+  document.getElementById('modal-json').innerHTML = `
+    <div class="modal-tabs">
+      <button class="modal-tab-btn active" onclick="switchModalTab('json',this)">RWP Record JSON</button>
+      <button class="modal-tab-btn" onclick="switchModalTab('ldn',this)">LDN Notification</button>
+      <button class="modal-tab-btn" onclick="switchModalTab('nanopub',this)">Nanopublication</button>
+    </div>
+    <div id="mtab-json" class="modal-tab-pane active">
+      <div class="json-block">${jsonHtml}</div>
+    </div>
+    <div id="mtab-ldn" class="modal-tab-pane">
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem">
+        Diese Notification wurde bei Finalisierung via
+        <strong>W3C Linked Data Notifications</strong> an den Inbox von
+        <code style="color:var(--primary)">did:rwp:bk.admin.ch/system/rwp-node</code> gesendet.
+      </p>
+      <div class="json-block">${ldnHtml}</div>
+    </div>
+    <div id="mtab-nanopub" class="modal-tab-pane">
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem">
+        Diese <strong>Nanopublication</strong> wurde in der Nanopub-Federation publiziert.
+        Journalist Lukas Meier (<code style="color:var(--primary)">did:rwp:lukas-meier.ch/journalist</code>) hat sie abonniert.
+      </p>
+      <div class="ttl-block">${buildNanopubTurtle(f)}</div>
+    </div>`;
+
+  // Solid section
+  const solidSection = document.getElementById('modal-solid');
+  if (f.state === 'finalized') {
+    solidSection.style.display = 'block';
+    solidSection.innerHTML = `
+      <div class="solid-box">
+        <div class="solid-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+          </svg>
+        </div>
+        <div class="solid-text">
+          <strong>In Solid Pod verlinken (simuliert)</strong>
+          Kein Inhalt wird kopiert — nur DID + snapshotHash als kryptographisch gesicherter Pointer.
+          <div style="margin-top:0.5rem">
+            <button class="btn btn-secondary" style="font-size:0.78rem;padding:0.3rem 0.75rem" onclick="simulateSolidLink('${f.id}')">
+              → In Solid Pod verlinken
+            </button>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    solidSection.style.display = 'none';
+  }
+
+  document.getElementById('btn-download').onclick = () => downloadRecord(f);
+  document.getElementById('btn-download').style.display = f.state === 'finalized' ? 'inline-flex' : 'none';
+  modal.classList.add('open');
+}
+
+function buildStepsHtml(f) {
+  const s = (done, active, num, title, sub) => `
+    <div class="step">
+      <div class="step-line">
+        <div class="step-dot ${done?'done':active?'active':'pending'}">${done?'✓':num}</div>
+        ${(done||active)?'<div class="step-connector"></div>':''}
+      </div>
+      <div class="step-content"><h4>${title}</h4><p>${sub}</p></div>
+    </div>`;
+  return `<div class="process-steps">
+    ${s(true,false,1,'Frage verfasst',escHtml(f.session)+(f.dept?' · '+f.dept:'')+' · '+formatDate(f.created))}
+    ${s(f.state==='finalized',false,2,'Als RWP-Record finalisiert',f.state==='finalized'?'snapshotHash berechnet · LDN gesendet · Nanopub publiziert · '+formatDate(f.finalized):'<em>Noch nicht finalisiert</em>')}
+    ${f.state==='finalized'?s(false,false,3,'Antwort erhalten','<em>Wartet auf Antwortmanagement (did:rwp:bk.admin.ch)</em>'):''}
+  </div>`;
+}
+
+function buildLdnHtml(f) {
+  const obj = {
+    "@context": ["https://www.w3.org/ns/activitystreams","https://recordweb.org/ns/rwp"],
+    "id": "did:rwp:parlament.ch/notifications/notif-"+f.id,
+    "type": "Announce",
+    "actor": "did:rwp:parlament.ch/system/rwp-node",
+    "published": f.finalized,
+    "target": "did:rwp:bk.admin.ch/system/rwp-node",
+    "object": {
+      "id": f.did,
+      "type": "rwp:FinalizedRecord",
+      "rwp:snapshotHash": f.snapshotHash,
+      "rwp:recordType": "did:rwp:parlament.ch/schema/fragestunde-frage",
+      "rwp:state": "finalized",
+      "rwp:owner": f.owner,
+      "summary": "Neue Fragestunde-Frage finalisiert · "+f.session
+    }
+  };
+  return syntaxHighlight(JSON.stringify(obj, null, 2));
+}
+
+function buildNanopubHtml(f) { return ''; }
+
+function buildNanopubTurtle(f) {
+  const np = 'https://np.recordweb.org/'+f.id+'#';
+  const hash = f.snapshotHash || 'sha256:pending';
+  return escHtml(
+`@prefix np:   <http://www.nanopub.org/nschema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rwp:  <https://recordweb.org/ns/rwp#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix :     <${np}> .
+
+:Head {
+  : a np:Nanopublication ;
+    np:hasAssertion :Assertion ;
+    np:hasProvenance :Provenance ;
+    np:hasPublicationInfo :PubInfo .
+}
+
+:Assertion {
+  <${f.did}>
+    a rwp:FinalizedRecord ;
+    rwp:hasSnapshotHash "${hash}"^^xsd:string ;
+    rwp:recordType <did:rwp:parlament.ch/schema/fragestunde-frage> ;
+    rwp:state rwp:finalized ;
+    rwp:session "${f.session}"^^xsd:string .
+}
+
+:Provenance {
+  :Assertion
+    prov:wasAttributedTo <${f.owner}> ;
+    prov:generatedAtTime "${f.finalized}"^^xsd:dateTime .
+}
+
+:PubInfo {
+  : prov:wasAttributedTo <did:rwp:parlament.ch/system/rwp-node> ;
+    prov:generatedAtTime "${f.finalized}"^^xsd:dateTime .
+}`);
+}
+
+function switchModalTab(tab, btn) {
+  document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.modal-tab-pane').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const el = document.getElementById('mtab-'+tab);
+  if (el) el.classList.add('active');
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeRecordModal();
+  if (e.key === 'n' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    switchTab('neue-frage');
+  }
+});
+
+// Enhance renderFragenList to show LDN badge on finalized
+const _origRender = renderFragenList;
+function renderFragenList() {
+  const c = document.getElementById('fragen-list-container');
+  const mine = fragen.filter(f => f.owner === currentUser.did);
+  if (mine.length === 0) {
+    c.innerHTML = '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h3>Noch keine Fragen</h3><p>Wechseln Sie zu «Neue Frage» <kbd class="kbd">N</kbd> um Ihre erste Frage zu formulieren.</p></div>';
+    return;
+  }
+  c.innerHTML = '<div class="fragen-list">' + mine.map(f => `
+    <div class="frage-item" onclick="showDetail('${f.id}')">
+      <div>
+        <div class="frage-text">${escHtml(f.text)}</div>
+        <div class="frage-meta" style="display:flex;align-items:center;flex-wrap:wrap;gap:0.4rem;margin-top:0.35rem">
+          <span>${escHtml(f.session)}${f.dept?' · '+f.dept:''}</span>
+          <span>·</span><span>${formatDate(f.created)}</span>
+          ${f.state==='finalized'?'<span class="ldn-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>LDN gesendet</span>':''}
+        </div>
+        ${f.snapshotHash?'<div style="font-size:0.72rem;color:var(--faint);margin-top:0.2rem">'+f.snapshotHash.slice(0,36)+'…</div>':''}
+      </div>
+      <span class="badge ${f.state==='draft'?'badge-draft':'badge-final'}">${f.state==='draft'?'Draft':'Finalisiert'}</span>
+    </div>`).join('') + '</div>' +
+    '<p style="font-size:0.75rem;color:var(--faint);margin-top:1rem;text-align:center">Klick auf eine Frage für Details · <kbd class="kbd">N</kbd> neue Frage · <kbd class="kbd">Esc</kbd> schliessen</p>';
+}
+</script>
+
+<!-- RECORD DETAIL MODAL -->
+<div class="modal-overlay" id="record-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">RWP-Record</h2>
+      <button class="btn-icon" onclick="closeRecordModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="modal-steps"></div>
+      <div style="margin-bottom:0.6rem;font-size:0.8rem;color:var(--muted);font-weight:500;">Record JSON</div>
+      <div class="json-block" id="modal-json"></div>
+      <div id="modal-solid" style="display:none;margin-top:1rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-download" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Als .rwp.json herunterladen
+      </button>
+      <button class="btn btn-secondary" onclick="closeRecordModal()">Schliessen</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
