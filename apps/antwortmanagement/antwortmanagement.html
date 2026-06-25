@@ -678,7 +678,6 @@ function renderCaseModal(c) {
   const canAnswer = currentUser.canAnswer || currentUser.login === 'admin.bk';
   const canManage = currentUser.canCreateCase || currentUser.login === 'admin.bk';
 
-  // Header
   document.getElementById('modal-case-title').textContent =
     'Case #' + c.id.slice(-6).toUpperCase() + ' · ' + c.departement;
 
@@ -694,9 +693,9 @@ function renderCaseModal(c) {
     </div>`;
   tl.innerHTML = `<div class="timeline">
     ${step(true,false,1,'Case eröffnet','Sachbearbeiter: '+escHtml(c.sachbearbeiter_did.split('/users/')[1]||c.sachbearbeiter_did)+' · '+formatDate(c.created))}
-    ${step(c.state!=='open',c.state==='open',2,'Antwort verfassen',c.antwortText?'Antwort '+(c.antwortHash?'finalisiert':'als Draft gespeichert'):'<em>Ausstehend</em>')}
-    ${step(c.state==='closed',c.state==='antwort_verfasst',3,'Nachweis der Vortragung',c.nachweisRef?escHtml(c.nachweisRef):'<em>Ausstehend</em>')}
-    ${step(c.state==='closed',false,4,'Case abgeschlossen',c.closedAt?formatDate(c.closedAt)+'<br><small style="font-size:0.72rem">Merkle Root: '+(c.merkleRoot||'—')+'</small>':'<em>Ausstehend</em>')}
+    ${step(!!c.antwortHash, !c.antwortHash && c.state!=='open', 2,'Antwort verfassen', c.antwortHash?'Finalisiert · '+formatDate(c.closedAt||c.created): c.antwortText?'Draft gespeichert':'<em>Ausstehend</em>')}
+    ${step(!!c.nachweisHash, !!c.antwortHash && !c.nachweisHash, 3,'Nachweis der Vortragung', c.nachweisHash?escHtml(c.nachweisRef||''):'<em>Ausstehend</em>')}
+    ${step(c.state==='closed', !!c.nachweisHash && c.state!=='closed', 4,'Case abgeschlossen', c.closedAt?formatDate(c.closedAt):'<em>Ausstehend</em>')}
   </div>`;
 
   // Remote Frage
@@ -717,14 +716,19 @@ function renderCaseModal(c) {
 
   // Antwort section
   const ans = document.getElementById('modal-answer');
-  if (c.antwortHash) {
-    // Finalized
+  if (c.state === 'closed') {
     ans.innerHTML = `<div class="answer-section">
-      <h3><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Antwort (finalisiert)</h3>
-      <div class="answer-final">${escHtml(c.antwortText)}</div>
-      <div style="font-size:0.74rem;color:var(--faint)">snapshotHash: ${escHtml(c.antwortHash)}</div>
+      <h3>✅ Antwort (finalisiert)</h3>
+      <div class="answer-final">${escHtml(c.antwortText||'')}</div>
+      <div style="font-size:0.73rem;color:var(--faint)">snapshotHash: ${escHtml(c.antwortHash||'')}</div>
     </div>`;
-  } else if (canAnswer && c.state !== 'closed') {
+  } else if (c.antwortHash) {
+    ans.innerHTML = `<div class="answer-section">
+      <h3>✅ Antwort (finalisiert)</h3>
+      <div class="answer-final">${escHtml(c.antwortText||'')}</div>
+      <div style="font-size:0.73rem;color:var(--faint)">snapshotHash: ${escHtml(c.antwortHash)}</div>
+    </div>`;
+  } else if (canAnswer) {
     const draft = antwortDraft[c.id] || c.antwortText || '';
     ans.innerHTML = `<div class="answer-section">
       <h3>Antwort verfassen</h3>
@@ -746,18 +750,54 @@ function renderCaseModal(c) {
         </button>
       </div>
     </div>`;
-  } else if (!canAnswer && c.state !== 'closed') {
+  } else {
     ans.innerHTML = `<div class="answer-section" style="text-align:center;padding:1.5rem">
       <div style="font-size:0.84rem;color:var(--muted)">Antwort wird von Bundesrätin Sandra Huber verfasst.</div>
       ${c.antwortText?'<div class="answer-draft" style="margin-top:0.75rem;text-align:left">'+escHtml(c.antwortText)+'</div>':''}
     </div>`;
-  } else {
-    ans.innerHTML = '';
   }
 
-  // Footer buttons
+  // Nachweis + close section
+  const extra = document.getElementById('modal-body-extra');
+  if (c.state === 'closed') {
+    extra.innerHTML = renderClosedSummary(c);
+  } else if (c.antwortHash) {
+    if (canManage) {
+      extra.innerHTML = c.nachweisHash
+        ? `<div class="nachweis-section">
+            <h3>✅ Vortragungsnachweis (finalisiert)</h3>
+            <div style="font-size:0.84rem;color:var(--text)">${escHtml(c.nachweisRef||'')}</div>
+            <div style="font-size:0.73rem;color:var(--faint);margin-top:0.3rem">snapshotHash: ${escHtml(c.nachweisHash)}</div>
+           </div>`
+        : `<div class="nachweis-section">
+            <h3>Vortragungsnachweis erfassen</h3>
+            <div class="form-group-full" style="margin-bottom:0.75rem">
+              <label>Protokollreferenz *</label>
+              <input type="text" id="inp-nachweis" placeholder="z. B. Amtsblatt Nr. 38/2026, Fragestunde HS, S. 47">
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" onclick="finalizeNachweis('${c.id}')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Nachweis finalisieren
+              </button>
+            </div>
+           </div>`;
+    } else {
+      extra.innerHTML = '';
+    }
+  } else {
+    extra.innerHTML = '';
+  }
+
+  // Footer
   const footer = document.getElementById('modal-footer-btns');
-  footer.innerHTML = `<button class="btn btn-secondary" onclick="closeCaseModal()">Schliessen</button>`;
+  const canClose = c.antwortHash && c.nachweisHash && c.state !== 'closed' && canManage;
+  footer.innerHTML = (c.state !== 'closed'
+    ? `<button class="btn btn-close-case" ${canClose?'':'disabled'} onclick="closeCaseAction('${c.id}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Case abschliessen${(!canClose) ? ' (Bedingungen fehlen)' : ''}
+      </button>` : '')
+    + `<button class="btn btn-secondary" onclick="closeCaseModal()">Schliessen</button>`;
 }
 
 function updateAntwortCounter() {
@@ -848,57 +888,6 @@ document.addEventListener('keydown', e => {
 // ── PART 3: Nachweis + Case-Abschluss + Merkle Root + Journalist ──────────
 
 // Extend renderCaseModal to include Nachweis section and close button
-const _origRenderCaseModal = renderCaseModal;
-function renderCaseModal(c) {
-  _origRenderCaseModal(c);
-
-  const canManage = currentUser.canCreateCase || currentUser.login === 'admin.bk';
-  const body = document.getElementById('modal-body-extra');
-
-  // Nachweis section — only after answer is finalized
-  if (c.antwortHash && c.state !== 'closed') {
-    if (canManage) {
-      body.innerHTML = c.nachweisHash
-        ? `<div class="nachweis-section">
-            <h3>✅ Vortragungsnachweis (finalisiert)</h3>
-            <div style="font-size:0.84rem;color:var(--text)">${escHtml(c.nachweisRef)}</div>
-            <div style="font-size:0.73rem;color:var(--faint);margin-top:0.3rem">snapshotHash: ${escHtml(c.nachweisHash)}</div>
-           </div>`
-        : `<div class="nachweis-section">
-            <h3>Vortragungsnachweis erfassen</h3>
-            <div class="form-group-full" style="margin-bottom:0.75rem">
-              <label>Protokollreferenz *</label>
-              <input type="text" id="inp-nachweis" placeholder="z. B. Amtsblatt Nr. 38/2026, Fragestunde HS, S. 47"
-                value="${escHtml(c.nachweisRef||'')}">
-            </div>
-            <div style="display:flex;justify-content:flex-end">
-              <button class="btn btn-primary" onclick="finalizeNachweis('${c.id}')">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Nachweis finalisieren
-              </button>
-            </div>
-           </div>`;
-    } else {
-      body.innerHTML = c.nachweisHash
-        ? `<div class="nachweis-section"><h3>✅ Vortragungsnachweis</h3><div style="font-size:0.84rem">${escHtml(c.nachweisRef)}</div></div>`
-        : `<div class="nachweis-section" style="text-align:center;padding:1rem"><div style="font-size:0.83rem;color:var(--muted)">Nachweis wird vom Sachbearbeiter erfasst.</div></div>`;
-    }
-  } else if (c.state === 'closed') {
-    body.innerHTML = renderClosedSummary(c);
-  } else {
-    body.innerHTML = '';
-  }
-
-  // Footer: close case button
-  const footer = document.getElementById('modal-footer-btns');
-  const canClose = c.antwortHash && c.nachweisHash && c.state !== 'closed' && canManage;
-  const closedStr = c.state === 'closed' ? '' :
-    `<button class="btn btn-close-case" ${canClose?'':'disabled'} onclick="closeCaseAction('${c.id}')">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-      Case abschliessen${!canClose && c.state!=='closed' ? ' (Bedingungen nicht erfüllt)' : ''}
-    </button>`;
-  footer.innerHTML = closedStr + `<button class="btn btn-secondary" onclick="closeCaseModal()">Schliessen</button>`;
-}
 
 function renderClosedSummary(c) {
   return `<div class="closed-banner">
