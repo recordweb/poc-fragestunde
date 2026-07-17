@@ -21,7 +21,7 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
 | Bundesrätin Sandra Huber | Departementsvorsteherin EJPD | `did:rwp:b7d4c810:users/sandra-huber` |
 | Journalist Lukas Meier | Medienschaffender, Beobachter (persönlicher Namespace) | `did:rwp:9e4a730b:self` |
 | RWP-Node Bundeskanzlei | Institutionelles System | `did:rwp:b7d4c810:system/rwp-node` |
-| RWP-Node Parlament | Institutionelles System | `did:rwp:a3f9e21c:system/rwp-node` |
+| RWP-Node Parlamentsdienste | Institutionelles System | `did:rwp:a3f9e21c:system/rwp-node` |
 
 ### Systemübersicht
 
@@ -58,18 +58,18 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
 
 ### Phase 1 — Frage stellen (Fragenmanagement)
 
-1. **Nationalrätin Bernasconi** loggt sich im Fragenmanagement ein (Test-User-Login).
+1. **Nationalrätin Bernasconi** (alternativ Thomas Frei) loggt sich im Fragenmanagement ein (Test-User-Login).
 2. Sie wählt die **Session** (z. B. Herbstsession 2026).
 3. Sie schreibt ihre **Frage** in ein Textfeld (max. 500 Zeichen).
 4. Sie kann die Frage als **Draft** speichern und weiterbearbeiten.
 5. Wenn sie sicher ist, **finalisiert** sie die Frage — analog zum «Speichern unter → .rwp».
    - Die Frage ist ab diesem Moment unveränderlich.
-   - Der RWP-Node des Parlaments berechnet den `snapshotHash`.
+   - Der RWP-Node der Parlamentsdienste berechnet den `snapshotHash`.
    - Es wird automatisch eine **LDN-Notification** an die Inbox des Antwortmanagements gesendet.
    - Parallel wird eine **Nanopublication** in der Nanopub-Federation publiziert.
 
 **Record: Fragestunde-Frage**  
-Typ: `did:rwp:a3f9e21c.ch/schema/fragestunde-frage`  
+Typ: `did:rwp:a3f9e21c:schema:fragestunde-frage`  
 Zustand: `draft` → `finalized`
 
 ### Phase 2 — Case eröffnen (Antwortmanagement)
@@ -117,7 +117,7 @@ Zustand: `draft` → `finalized`
 
 ### Exkurs: Nostr und content-addressed Identity
 
-Nostr identifiziert Events durch ihren SHA-256-Hash direkt — die ID *ist* der Hash. Das ist konzeptionell verwandt mit RecordWebs `snapshotHash`, unterscheidet sich aber: in RecordWeb ist der Hash der *Snapshot*, nicht der Record selbst. Der Record hat eine stabile DID, die über alle Versionen konstant bleibt. Ein Nostr-Event entspricht am ehesten einem einzelnen finalisierten Snapshot. Für RecordWeb wäre eine Nostr-ähnliche Adressierbarkeit denkbar als *alias* — `did:rwp:parlament.ch/records/{snapshotHash}` — als direkt aufzulösende Adresse für einen spezifischen Snapshot, ergänzend zur stabilen DID. Dies ist eine offene Designfrage für RWP v1.0.
+Nostr identifiziert Events durch ihren SHA-256-Hash direkt — die ID *ist* der Hash. Das ist konzeptionell verwandt mit RecordWebs `snapshotHash`, unterscheidet sich aber: in RecordWeb ist der Hash der *Snapshot*, nicht der Record selbst. Der Record hat eine stabile DID, die über alle Versionen konstant bleibt. Ein Nostr-Event entspricht am ehesten einem einzelnen finalisierten Snapshot. Für RecordWeb wäre eine Nostr-ähnliche Adressierbarkeit denkbar als *alias* — `did:rwp:a3f9e21c:records:{snapshotHash}` — als direkt aufzulösende Adresse für einen spezifischen Snapshot, ergänzend zur stabilen DID. Dies ist eine offene Designfrage für RWP v1.0.
 
 ---
 
