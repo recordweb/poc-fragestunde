@@ -13,22 +13,21 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
 ## Szenario
 
 ### Beteiligte Akteure
-
 | Akteur | Rolle | DID |
 |---|---|---|
-| Nationalrätin Maria Bernasconi | Parlamentarierin | `did:rwp:parlament.ch/users/maria-bernasconi` |
-| Nationalrat Thomas Frei | Parlamentarier | `did:rwp:parlament.ch/users/thomas-frei` |
-| Mitarbeiter Daniel Wyss | Sachbearbeiter Bundeskanzlei | `did:rwp:bk.admin.ch/users/daniel-wyss` |
-| Bundesrätin Sandra Huber | Departementsvorsteherin EJPD | `did:rwp:bk.admin.ch/users/sandra-huber` |
-| Journalist Lukas Meier | Medienschaffender, Beobachter | `did:rwp:lukas-meier.ch/journalist` |
-| RWP-Node Parlament | Institutionelles System | `did:rwp:parlament.ch/system/rwp-node` |
-| RWP-Node Bundesrat | Institutionelles System | `did:rwp:bk.admin.ch/system/rwp-node` |
+| Nationalrätin Maria Bernasconi | Parlamentarierin (persönlicher Namespace) | `did:rwp:f2c81e05:self` |
+| Nationalrat Thomas Frei | Parlamentarier | `did:rwp:c6cdee0b:self` |
+| Mitarbeiter Daniel Wyss | Sachbearbeiter Bundeskanzlei | `did:rwp:b7d4c810:users/daniel-wyss` |
+| Bundesrätin Sandra Huber | Departementsvorsteherin EJPD | `did:rwp:b7d4c810:users/sandra-huber` |
+| Journalist Lukas Meier | Medienschaffender, Beobachter (persönlicher Namespace) | `did:rwp:9e4a730b:self` |
+| RWP-Node Bundeskanzlei | Institutionelles System | `did:rwp:b7d4c810:system/rwp-node` |
+| RWP-Node Parlament | Institutionelles System | `did:rwp:a3f9e21c:system/rwp-node` |
 
 ### Systemübersicht
 
 ┌─────────────────────────────────────────────────┐  
 │ FRAGENMANAGEMENT (Parlamentsdienste)            │  
-│ did:rwp:parlament.ch                            │  
+│ did:rwp:a3f9e21c:system/rwp-node                │  
 │                                                 │  
 │ Records: Fragestunde-Frage                      │  
 │ Notify via: LDN → Antwortmanagement             │  
@@ -38,7 +37,7 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
                        ▼  
 ┌─────────────────────────────────────────────────┐  
 │ ANTWORTMANAGEMENT (Bundeskanzlei)               │  
-│ did:rwp:bk.admin.ch                             │  
+│ did:rwp:b7d4c810:system/rwp-node                │  
 │                                                 │  
 │ Records: Fragestunde-Case, Antwort, Nachweis    │  
 │ Liest Frage via DID (keine lokale Kopie!)       │  
@@ -70,7 +69,7 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
    - Parallel wird eine **Nanopublication** in der Nanopub-Federation publiziert.
 
 **Record: Fragestunde-Frage**  
-Typ: `did:rwp:parlament.ch/schema/fragestunde-frage`  
+Typ: `did:rwp:a3f9e21c.ch/schema/fragestunde-frage`  
 Zustand: `draft` → `finalized`
 
 ### Phase 2 — Case eröffnen (Antwortmanagement)
@@ -164,32 +163,6 @@ poc-fragestunde/
 └── viewer/  
   └── rw-viewer.html ← Record-Viewer (liest Beispiel-Records)  
 
-
----
-
-## Test-User-Konten
-
-**Fragenmanagement (Parlamentsdienste):**
-
-| Login-Name | Rolle | DID |
-|---|---|---|
-| `maria.bernasconi` | Nationalrätin | `did:rwp:parlament.ch/users/maria-bernasconi` |
-| `thomas.frei` | Nationalrat | `did:rwp:parlament.ch/users/thomas-frei` |
-| `admin.parlamentsdienste` | Admin | `did:rwp:parlament.ch/users/admin` |
-
-**Antwortmanagement (Bundeskanzlei):**
-
-| Login-Name | Rolle | DID |
-|---|---|---|
-| `daniel.wyss` | Sachbearbeiter | `did:rwp:bk.admin.ch/users/daniel-wyss` |
-| `sandra.huber` | Bundesrätin EJPD | `did:rwp:bk.admin.ch/users/sandra-huber` |
-| `admin.bk` | Admin | `did:rwp:bk.admin.ch/users/admin` |
-
-**Journalist:**
-
-| Login-Name | Rolle | DID |
-|---|---|---|
-| `lukas.meier` | Journalist (read-only) | `did:rwp:lukas-meier.ch/journalist` |
 
 ---
 
