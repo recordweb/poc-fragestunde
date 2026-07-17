@@ -195,12 +195,6 @@ poc-fragestunde/
 
 ## Scope des PoC
 
-Dieser PoC wurde ursprünglich als stark vereinfachter Demonstrator 
-konzipiert. Mit dem erweiterten Team (Nicolas Buerkler, Melvin, 
-Tobias) wird der Scope nun deutlich ausgeweitet, um die 
-Kernkomponenten von RecordWeb nicht mehr nur zu simulieren, sondern 
-tatsächlich funktionsfähig zu implementieren.
-
 ### Im Scope
 
 - Record-Lebenszyklus (Draft → Finalized) mit State-Maschine
