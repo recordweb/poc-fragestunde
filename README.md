@@ -1,14 +1,5 @@
 # RecordWeb PoC — Fragestunde
 
-**Repository:** `github.com/recordweb/poc-fragestunde`  
-**Version:** 0.0.1 Draft  
-**Datum:** 2026-06-25  
-**Autor:** Nik Jenzer,   
-**Status:** PoC-Planungsdokument  
-**Verwandte Dokumente:** RecordWeb Concept (RWC v1.0), RecordWeb Protocol (RWP v0.1), W3C Community Group Note v0.2
-
----
-
 ## Übersicht
 
 Dieser Proof of Concept demonstriert RecordWeb am Beispiel der **parlamentarischen Fragestunde** des Schweizer Parlaments. Er zeigt, wie zwei institutionell getrennte Systeme — das Fragenmanagement der Parlamentsdienste und das Antwortmanagement des Bundesrats — Records über `did:rwp` identifizieren, über Linked Data Notifications (LDN) miteinander kommunizieren und Nanopublications zur öffentlichen Entdeckbarkeit nutzen können. 
@@ -16,6 +7,7 @@ Dieser Proof of Concept demonstriert RecordWeb am Beispiel der **parlamentarisch
 Der PoC demonstriert bewusst keine vollständige Produktionsimplementierung. Er zeigt den **konzeptionellen Kern von RecordWeb**: ein Record entsteht dort, wo er hingehört, bleibt dort, und wird von anderen Systemen via DID gelesen — ohne Kopie, ohne Datenmigration, ohne zentrales Repository.
 
 Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht und nicht mit den beteiligten Parteien abgestimmt. **Der PoC ist somit ein fiktiver Demonstrator mit einem minimalen realen Bezug**.
+
 ---
 
 ## Szenario
@@ -203,22 +195,56 @@ poc-fragestunde/
 
 ## Scope des PoC
 
-**Im Scope:**
-- Record-Lebenszyklus Draft → Finalized mit State-Maschine
-- DID-basierte Identität (`did:rwp`) für Records und Akteure
-- Cross-System-Record-Referenz (Antwortmanagement liest Frage via DID, keine Kopie)
-- LDN-Notification bei Finalisierung (simuliert)
-- Nanopub-Struktur (Turtle, exemplarisch)
-- Case-Merkle-Root (berechnet im Frontend via crypto.subtle)
-- Solid-Pod-Verlinkung (Phase 5, simuliert)
-- Journalist-Subscription via Nanopub (UI-Darstellung)
+Dieser PoC wurde ursprünglich als stark vereinfachter Demonstrator 
+konzipiert. Mit dem erweiterten Team (Nicolas Buerkler, Melvin, 
+Tobias) wird der Scope nun deutlich ausgeweitet, um die 
+Kernkomponenten von RecordWeb nicht mehr nur zu simulieren, sondern 
+tatsächlich funktionsfähig zu implementieren.
 
-**Ausserhalb des Scope (bewusst vereinfacht):**
-- Echte kryptographische Signaturen (Platzhalter)
-- Produktive DID-Resolver-Infrastruktur
-- Echte LDN-Endpoints
-- Echte Nanopub-Federation
+### Im Scope
+
+- Record-Lebenszyklus (Draft → Finalized) mit State-Maschine
+- DID-basierte Identität (`did:rwp`) für Records und Akteure, 
+  aufgelöst über einen echten, opaquen DID-Resolver (siehe 
+  `rwp-resolver`)
+- Cross-System-Record-Referenz: Antwortmanagement liest die Frage 
+  via DID direkt aus dem Fragenmanagement, keine lokale Kopie
+- Echte LDN-Notification zwischen Fragenmanagement und 
+  Antwortmanagement (Minimalimplementierung, CORS-basiert)
+- Echte Nanopublication bei Finalisierung und Case-Abschluss, 
+  publiziert über einen dedizierten Service (siehe 
+  `rwp-nanopub-service`)
+- Case-Merkle-Root, berechnet gemäss RWP-Spezifikation
+- Solid-Pod-Integration für zwei unabhängige Anwendungsfälle 
+  (siehe `rwp-solid-connector`):
+  - Nationalrätin Bernasconi verlinkt Frage und Antwort in ihr 
+    persönliches Solid Pod als Nachweis ihres parlamentarischen 
+    Mandats
+  - Journalist Meier speichert die Antwort in seinem eigenen 
+    Solid-Server als unabhängige journalistische Dokumentation
+- Kryptographische Snapshot-Hashes, real berechnet (nicht 
+  Platzhalter)
+
+### Ausserhalb des Scope
+
 - Rechtsbindende Authentifizierung
+- Vollständige, produktionsreife Zugriffskontrolle
+- Verhalten bei Reorganisation, Merger oder Split von Namespaces 
+  (siehe offene Designfragen in RWP, Kapitel 12)
+
+### Verwendete externe Services
+
+Dieser PoC nutzt drei eigenständige, produktiv geplante 
+Infrastruktur-Repositories, die unabhängig von diesem PoC 
+weiterentwickelt werden und auch von zukünftigen PoCs genutzt 
+werden können:
+
+- [`rwp-resolver`](https://github.com/recordweb/rwp-resolver) — 
+  DID-Auflösung
+- [`rwp-nanopub-service`](https://github.com/recordweb/rwp-nanopub-service) — 
+  Nanopublication-Publikation und Discovery
+- [`rwp-solid-connector`](https://github.com/recordweb/rwp-solid-connector) — 
+  Solid-Pod-Integration
 
 ---
 
@@ -230,6 +256,5 @@ Dieses Repository folgt der PoC-Struktur von `recordweb/poc-*`.
 
 ## Lizenz und Governance
 
-Defensive Publication — verhindert Drittpatentierung der PoC-Konzepte.  
-© 2026 Nik Jenzer  
-Source: [https://github.com/recordweb/poc-fragestunde](https://github.com/recordweb/poc-fragestunde)
+Licensed under the W3C Software and Document License 
+(https://www.w3.org/copyright/software-license-2023/).
