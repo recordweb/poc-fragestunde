@@ -29,15 +29,6 @@ export function buildLdnNotification(record) {
 
 export async function sendLdnNotification(record) {
   const notification = buildLdnNotification(record);
-
-  // PoC-Simulation: Da das Antwortmanagement noch nicht existiert,
-  // wird die Notification nur geloggt und in der DB abgelegt.
-  console.log("LDN-Notification (simuliert):", JSON.stringify(notification, null, 2));
-  return notification;
-}
-
-export async function sendLdnNotification(record) {
-  const notification = buildLdnNotification(record);
   await logEvent(`LDN-Notification gesendet für ${record.did} an ${notification.target}`);
   return notification;
 }
