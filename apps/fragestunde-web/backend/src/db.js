@@ -25,6 +25,13 @@ export async function initSchema() {
       signature         TEXT,
       payload           JSONB NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS ldn_notifications (
+      id                TEXT PRIMARY KEY,
+      record_did        TEXT NOT NULL,
+      target            TEXT NOT NULL,
+      published         TIMESTAMPTZ NOT NULL DEFAULT now(),
+      payload           JSONB NOT NULL
+    );
   `);
 }
 

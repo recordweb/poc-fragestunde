@@ -3,22 +3,18 @@ import { v4 as uuidv4 } from "uuid";
 import pool from "../db.js";
 import { validatePayload, schemaVersionHash, RECORD_TYPE_FRAGE } from "../schemas.js";
 import { computeSnapshotHash, computePayloadHash } from "../crypto.js";
+import { sendLdnNotification } from "../ldn.js";
 
 const router = express.Router();
-
 const NAMESPACE_FRAGENMANAGEMENT = "a3f9e21c";
 
+// Interne Liste (zeigt auch Drafts) — für die eigene UI
 router.get("/", async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM records ORDER BY created DESC");
   res.json(rows);
 });
 
-router.get("/:did(*)", async (req, res) => {
-  const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [req.params.did]);
-  if (!rows.length) return res.status(404).json({ error: "Not found" });
-  res.json(rows[0]);
-});
-
+// Draft anlegen
 router.post("/", async (req, res) => {
   const { recordType, owner, payload } = req.body;
 
@@ -41,8 +37,10 @@ router.post("/", async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
-router.put("/:did(*)/finalize", async (req, res) => {
-  const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [req.params.did]);
+// Finalisieren — unwiderruflich, generiert snapshotHash, versendet LDN
+router.put(/^\/(.+)\/finalize$/, async (req, res) => {
+  const did = decodeURIComponent(req.params[0]);
+  const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [did]);
   if (!rows.length) return res.status(404).json({ error: "Not found" });
 
   const record = rows[0];
@@ -72,7 +70,30 @@ router.put("/:did(*)/finalize", async (req, res) => {
   );
 
   const updated = await pool.query("SELECT * FROM records WHERE did = $1", [record.did]);
-  res.json(updated.rows[0]);
+  const updatedRecord = updated.rows[0];
+
+  const notification = await sendLdnNotification(updatedRecord);
+
+  await pool.query(
+    `INSERT INTO ldn_notifications (id, record_did, target, published, payload)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [notification.id, updatedRecord.did, notification.target, notification.published, notification]
+  );
+
+  res.json(updatedRecord);
+});
+
+// Extern lesbar — NUR finalisierte Records (muss NACH /finalize stehen wegen Pfad-Überlappung)
+router.get(/^\/(.+)$/, async (req, res) => {
+  const did = decodeURIComponent(req.params[0]);
+  const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [did]);
+  if (!rows.length) return res.status(404).json({ error: "Not found" });
+
+  const record = rows[0];
+  if (record.state !== "finalized") {
+    return res.status(403).json({ error: "Record ist nicht finalisiert und daher nicht extern sichtbar" });
+  }
+  res.json(record);
 });
 
 export default router;

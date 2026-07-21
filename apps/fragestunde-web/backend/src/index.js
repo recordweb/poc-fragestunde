@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import pool from "./db.js";
 import { initSchema } from "./db.js";
 import recordsRouter from "./routes/records.js";
 
@@ -8,6 +9,12 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+app.get("/notifications", async (req, res) => {
+  const { rows } = await pool.query("SELECT * FROM ldn_notifications ORDER BY published DESC");
+  res.json(rows);
+});
+
 app.use("/records", recordsRouter);
 
 const PORT = process.env.PORT || 3000;
