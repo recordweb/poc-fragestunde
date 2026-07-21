@@ -13,7 +13,9 @@ services:
       - poc_network
 
   api:
-    build: ./apps/fragestunde-web/backend
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
     container_name: poc-api
     restart: unless-stopped
     depends_on:
@@ -23,6 +25,8 @@ services:
       PGUSER: poc_user
       PGPASSWORD: poc_recordweb
       PGDATABASE: poc_db
+    volumes:
+      - ./schemas:/app/schemas:ro
     networks:
       - poc_network
 
