@@ -1,26 +1,24 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import pool from "../db.js";
-import { validatePayload } from "../schemas.js";
+import { validatePayload, schemaVersionHash, RECORD_TYPE_FRAGE } from "../schemas.js";
 import { computeSnapshotHash, computePayloadHash } from "../crypto.js";
 
 const router = express.Router();
 
-const RECORD_TYPE_FRAGE = "did:rwp:parlament.ch/schema/fragestunde-frage";
-const SCHEMA_VERSION_FRAGE = "sha256:a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3";
+const NAMESPACE_FRAGENMANAGEMENT = "a3f9e21c";
 
 router.get("/", async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM records ORDER BY created DESC");
   res.json(rows);
 });
 
-router.get("/:did", async (req, res) => {
+router.get("/:did(*)", async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [req.params.did]);
   if (!rows.length) return res.status(404).json({ error: "Not found" });
   res.json(rows[0]);
 });
 
-// Draft anlegen — DID wird sofort und dauerhaft vergeben
 router.post("/", async (req, res) => {
   const { recordType, owner, payload } = req.body;
 
@@ -31,21 +29,19 @@ router.post("/", async (req, res) => {
   const { valid, errors } = validatePayload(recordType, payload);
   if (!valid) return res.status(422).json({ error: "Payload ungültig", details: errors });
 
-  const sessionSlug = (payload.session || "session").toLowerCase().replace(/\s+/g, "").slice(0, 20);
-  const did = `did:rwp:parlament.ch/records/frage-${uuidv4().slice(0, 8)}-${sessionSlug}`;
+  const did = `did:rwp:${NAMESPACE_FRAGENMANAGEMENT}:records:${uuidv4()}`;
 
   await pool.query(
     `INSERT INTO records (did, record_type, schema_version, state, owner, parents, payload_hash, payload_format, payload)
      VALUES ($1,$2,$3,'draft',$4,'[]',$5,'application/json',$6)`,
-    [did, recordType, SCHEMA_VERSION_FRAGE, owner, computePayloadHash(payload), payload]
+    [did, recordType, schemaVersionHash(), owner, computePayloadHash(payload), payload]
   );
 
   const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [did]);
   res.status(201).json(rows[0]);
 });
 
-// Finalisieren — unwiderruflich, generiert snapshotHash
-router.put("/:did/finalize", async (req, res) => {
+router.put("/:did(*)/finalize", async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [req.params.did]);
   if (!rows.length) return res.status(404).json({ error: "Not found" });
 
@@ -72,10 +68,10 @@ router.put("/:did/finalize", async (req, res) => {
 
   await pool.query(
     `UPDATE records SET state='finalized', finalized=$1, snapshot_hash=$2, signature=$3 WHERE did=$4`,
-    [finalized, snapshotHash, "z_PLACEHOLDER_PoC_signature", req.params.did]
+    [finalized, snapshotHash, "z_PLACEHOLDER_PoC_signature", record.did]
   );
 
-  const updated = await pool.query("SELECT * FROM records WHERE did = $1", [req.params.did]);
+  const updated = await pool.query("SELECT * FROM records WHERE did = $1", [record.did]);
   res.json(updated.rows[0]);
 });
 
