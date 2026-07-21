@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { logEvent } from "./logger.js";
 
 const ACTOR = "did:rwp:a3f9e21c:system/rwp-node";
 const TARGET = "did:rwp:b7d4c810:system/rwp-node"; // Antwortmanagement, laut README
@@ -32,5 +33,11 @@ export async function sendLdnNotification(record) {
   // PoC-Simulation: Da das Antwortmanagement noch nicht existiert,
   // wird die Notification nur geloggt und in der DB abgelegt.
   console.log("LDN-Notification (simuliert):", JSON.stringify(notification, null, 2));
+  return notification;
+}
+
+export async function sendLdnNotification(record) {
+  const notification = buildLdnNotification(record);
+  await logEvent(`LDN-Notification gesendet für ${record.did} an ${notification.target}`);
   return notification;
 }

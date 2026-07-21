@@ -15,6 +15,11 @@ app.get("/notifications", async (req, res) => {
   res.json(rows);
 });
 
+app.get("/logs", async (req, res) => {
+  const { rows } = await pool.query("SELECT * FROM server_logs ORDER BY created DESC LIMIT 100");
+  res.json(rows);
+});
+
 app.use("/records", recordsRouter);
 
 const PORT = process.env.PORT || 3000;

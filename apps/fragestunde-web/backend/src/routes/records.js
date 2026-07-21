@@ -4,6 +4,7 @@ import pool from "../db.js";
 import { validatePayload, schemaVersionHash, RECORD_TYPE_FRAGE } from "../schemas.js";
 import { computeSnapshotHash, computePayloadHash } from "../crypto.js";
 import { sendLdnNotification } from "../ldn.js";
+import { logEvent } from "../logger.js";
 
 const router = express.Router();
 const NAMESPACE_FRAGENMANAGEMENT = "a3f9e21c";
@@ -141,7 +142,7 @@ router.post("/:did(*)/solid-link", async (req, res) => {
     [linkId, did, record.snapshot_hash, podUrl, linkedBy]
   );
 
-  console.log(`Solid-Pod-Link (simuliert): ${podUrl} → ${did} (Hash: ${record.snapshot_hash})`);
+  await logEvent(`Solid-Pod-Link erstellt: ${podUrl} → ${did} (Hash: ${record.snapshot_hash})`);
 
   res.status(201).json({
     id: linkId,

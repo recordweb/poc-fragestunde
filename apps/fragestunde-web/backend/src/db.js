@@ -40,6 +40,12 @@ export async function initSchema() {
       linked_by         TEXT NOT NULL,
       linked_at         TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS server_logs (
+      id         SERIAL PRIMARY KEY,
+      level      TEXT NOT NULL DEFAULT 'info',
+      message    TEXT NOT NULL,
+      created    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
 }
 
