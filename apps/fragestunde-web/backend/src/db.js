@@ -32,6 +32,14 @@ export async function initSchema() {
       published         TIMESTAMPTZ NOT NULL DEFAULT now(),
       payload           JSONB NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS solid_links (
+      id                TEXT PRIMARY KEY,
+      record_did        TEXT NOT NULL,
+      snapshot_hash     TEXT NOT NULL,
+      pod_url           TEXT NOT NULL,
+      linked_by         TEXT NOT NULL,
+      linked_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
 }
 

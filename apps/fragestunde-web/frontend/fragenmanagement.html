@@ -53,6 +53,12 @@
     <h2>Meine Fragen</h2>
     <div id="recordsList"></div>
   </div>
+
+  <div class="card" id="notificationsCard" style="display:none;">
+    <h2>LDN-Notifications (Admin)</h2>
+    <div id="notificationsList"></div>
+  </div>
+
 </div>
 
 <script>
@@ -144,6 +150,10 @@ function renderRecords(records) {
         </table>
         <p><strong>Payload:</strong></p>
         <pre>${JSON.stringify(r.payload, null, 2)}</pre>
+        ${r.state === "finalized" ? `
+          <button class="solidLinkBtn" data-did="${r.did}">In Solid Pod verlinken</button>
+          <div class="solidLinksList" data-did="${r.did}"></div>
+        ` : ""}
       </details>
     `;
     recordsList.appendChild(div);
@@ -230,6 +240,61 @@ saveDraftBtn.addEventListener("click", async () => {
   loadRecords();
 });
 
+async function loadNotifications() {
+  const res = await fetch("/api/notifications");
+  const notifications = await res.json();
+  const list = document.getElementById("notificationsList");
+  list.innerHTML = "";
+  if (!notifications.length) {
+    list.innerHTML = "<p>Keine Notifications vorhanden.</p>";
+    return;
+  }
+  notifications.forEach(n => {
+    const div = document.createElement("div");
+    div.className = "record finalized";
+    div.innerHTML = `
+      <strong>${n.payload.object.summary}</strong><br>
+      <span class="did">Record: ${n.record_did}</span><br>
+      <span class="did">Target: ${n.target}</span><br>
+      <span class="did">Published: ${n.published}</span>
+      <details>
+        <summary>Vollständige Notification anzeigen</summary>
+        <pre>${JSON.stringify(n.payload, null, 2)}</pre>
+      </details>
+    `;
+    list.appendChild(div);
+  });
+}
+
+document.querySelectorAll(".solidLinkBtn").forEach(btn => {
+  btn.addEventListener("click", () => linkToSolid(btn.dataset.did));
+});
+
+async function linkToSolid(did) {
+  const podUrl = prompt(
+    "Solid-Pod-URL eingeben (Simulation):",
+    "https://bernasconi.solidpod.ch/fragestunde/"
+  );
+  if (!podUrl) return;
+
+  const user = getCurrentUser();
+  const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/solid-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ podUrl, linkedBy: user.did })
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    alert("Fehler: " + err.error);
+    return;
+  }
+
+  const link = await res.json();
+  alert(`Pointer im Solid Pod erstellt:\n${link.podUrl}\nHash: ${link.snapshotHash}\n\n${link.note}`);
+  loadRecords();
+}
+
 function renderApp() {
   const user = getCurrentUser();
   if (user) {
@@ -237,6 +302,14 @@ function renderApp() {
     appView.classList.remove("hidden");
     currentUserLabel.textContent = user.label;
     loadRecords();
+
+    const notifCard = document.getElementById("notificationsCard");
+    if (user === USERS.admin) {
+      notifCard.style.display = "block";
+      loadNotifications();
+    } else {
+      notifCard.style.display = "none";
+    }
   } else {
     loginView.classList.remove("hidden");
     appView.classList.add("hidden");

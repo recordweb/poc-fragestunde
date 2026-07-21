@@ -4,6 +4,7 @@ import pool from "../db.js";
 import { validatePayload, schemaVersionHash, RECORD_TYPE_FRAGE } from "../schemas.js";
 import { computeSnapshotHash, computePayloadHash } from "../crypto.js";
 import { sendLdnNotification } from "../ldn.js";
+import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
 const NAMESPACE_FRAGENMANAGEMENT = "a3f9e21c";
@@ -120,6 +121,46 @@ router.get(/^\/(.+)$/, async (req, res) => {
     return res.status(403).json({ error: "Record ist nicht finalisiert und daher nicht extern sichtbar" });
   }
   res.json(record);
+});
+
+router.post("/:did(*)/solid-link", async (req, res) => {
+  const did = req.params.did;
+  const { podUrl, linkedBy } = req.body;
+
+  const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [did]);
+  if (!rows.length) return res.status(404).json({ error: "Not found" });
+
+  const record = rows[0];
+  if (record.state !== "finalized") {
+    return res.status(409).json({ error: "Nur finalisierte Records können ins Solid Pod verlinkt werden" });
+  }
+
+  const linkId = uuidv4();
+  await pool.query(
+    `INSERT INTO solid_links (id, record_did, snapshot_hash, pod_url, linked_by)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [linkId, did, record.snapshot_hash, podUrl, linkedBy]
+  );
+
+  console.log(`Solid-Pod-Link (simuliert): ${podUrl} → ${did} (Hash: ${record.snapshot_hash})`);
+
+  res.status(201).json({
+    id: linkId,
+    recordDid: did,
+    snapshotHash: record.snapshot_hash,
+    podUrl,
+    linkedBy,
+    linkedAt: new Date().toISOString(),
+    note: "Simulierter Solid-Pod-Link — keine Inhaltskopie, nur kryptographischer Pointer"
+  });
+});
+
+router.get("/:did(*)/solid-links", async (req, res) => {
+  const { rows } = await pool.query(
+    "SELECT * FROM solid_links WHERE record_did = $1 ORDER BY linked_at DESC",
+    [req.params.did]
+  );
+  res.json(rows);
 });
 
 export default router;
