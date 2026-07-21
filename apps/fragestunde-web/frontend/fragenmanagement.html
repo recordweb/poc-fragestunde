@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Fragenmanagement · RecordWeb PoC</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
+  h1 { font-size: 1.4rem; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .test-account { display: inline-block; margin: 4px; padding: 8px 12px; border: 1px solid #999; border-radius: 6px; cursor: pointer; background: #f5f5f7; }
+  .test-account:hover { background: #e6e6ea; }
+  textarea, select { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
+  button { padding: 8px 16px; cursor: pointer; }
+  .record { border-left: 4px solid #999; padding: 10px; margin: 10px 0; background: #fafafa; }
+  .record.draft { border-color: #e0a800; }
+  .record.finalized { border-color: #2b8a3e; }
+  .did { font-size: 0.75rem; color: #666; word-break: break-all; }
+  #logoutBtn { float: right; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="card">
+  <h1>Parlamentsdienste Schweiz · RecordWeb PoC</h1>
+  <p>Test-Accounts (klicken zum Einloggen):</p>
+  <div class="test-account" data-user="bernasconi">maria.bernasconi — Nationalrätin</div>
+  <div class="test-account" data-user="frei">thomas.frei — Nationalrat</div>
+  <div class="test-account" data-user="admin">admin.parlamentsdienste — Admin</div>
+</div>
+
+<div id="appView" class="hidden">
+  <button id="logoutBtn">Logout</button>
+  <h1>Fragenmanagement — <span id="currentUserLabel"></span></h1>
+
+  <div class="card">
+    <h2>Neue Frage</h2>
+    <select id="sessionSelect">
+      <option>Herbstsession 2026</option>
+      <option>Wintersession 2026</option>
+    </select>
+    <textarea id="fragetext" maxlength="500" rows="4" placeholder="Ihre Frage (max. 500 Zeichen)"></textarea>
+    <button id="saveDraftBtn">Als Draft speichern</button>
+  </div>
+
+  <div class="card">
+    <h2>Meine Fragen</h2>
+    <div id="recordsList"></div>
+  </div>
+</div>
+
+<script>
+const API_BASE = "/api/records";
+
+const USERS = {
+  bernasconi: { did: "did:rwp:f2c81e05:self", label: "Maria Bernasconi (Nationalrätin)" },
+  frei:       { did: "did:rwp:c6cdee0b:self", label: "Thomas Frei (Nationalrat)" },
+  admin:      { did: "did:rwp:a3f9e21c:system/admin", label: "Admin Parlamentsdienste" }
+};
+
+const RECORD_TYPE_FRAGE = "did:rwp:a3f9e21c:schema:fragestunde-frage";
+
+const loginView = document.getElementById("loginView");
+const appView = document.getElementById("appView");
+const currentUserLabel = document.getElementById("currentUserLabel");
+const recordsList = document.getElementById("recordsList");
+
+function getCurrentUser() {
+  const key = sessionStorage.getItem("currentUserKey");
+  return key ? USERS[key] : null;
+}
+
+function login(key) {
+  sessionStorage.setItem("currentUserKey", key);
+  renderApp();
+}
+
+function logout() {
+  sessionStorage.removeItem("currentUserKey");
+  renderApp();
+}
+
+document.querySelectorAll(".test-account").forEach(el => {
+  el.addEventListener("click", () => login(el.dataset.user));
+});
+document.getElementById("logoutBtn").addEventListener("click", logout);
+
+async function loadRecords() {
+  const user = getCurrentUser();
+  if (!user) return;
+  const res = await fetch(API_BASE);
+  const all = await res.json();
+  const mine = user === USERS.admin
+    ? all
+    : all.filter(r => r.owner === user.did);
+  renderRecords(mine);
+}
+
+function renderRecords(records) {
+  recordsList.innerHTML = "";
+  if (!records.length) {
+    recordsList.innerHTML = "<p>Noch keine Fragen erfasst.</p>";
+    return;
+  }
+  records.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "record " + r.state;
+    div.innerHTML = `
+      <strong>${r.payload.session}</strong> — <em>${r.state}</em><br>
+      ${r.payload.fragetext}<br>
+      <span class="did">${r.did}</span>
+      ${r.snapshot_hash ? `<br><span class="did">Hash: ${r.snapshot_hash}</span>` : ""}
+      ${r.state === "draft" ? `<br><button class="finalizeBtn" data-did="${r.did}">Finalisieren</button>` : ""}
+    `;
+    recordsList.appendChild(div);
+  });
+
+  document.querySelectorAll(".finalizeBtn").forEach(btn => {
+    btn.addEventListener("click", () => finalizeRecord(btn.dataset.did));
+  });
+}
+
+async function finalizeRecord(did) {
+  const ok = confirm(
+    "Dieser Vorgang finalisiert Ihre Frage unwiderruflich. Der Record erhält eine permanente DID und einen kryptographischen Snapshot-Hash."
+  );
+  if (!ok) return;
+  await fetch(`${API_BASE}/${encodeURIComponent(did)}/finalize`, { method: "PUT" });
+  loadRecords();
+}
+
+document.getElementById("saveDraftBtn").addEventListener("click", async () => {
+  const user = getCurrentUser();
+  const fragetext = document.getElementById("fragetext").value.trim();
+  const session = document.getElementById("sessionSelect").value;
+
+  if (!fragetext) {
+    alert("Bitte einen Fragetext eingeben.");
+    return;
+  }
+
+  const payload = {
+    fragetext,
+    session,
+    parlamentarier_did: user.did,
+    eingereicht_am: new Date().toISOString()
+  };
+
+  const res = await fetch(API_BASE, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recordType: RECORD_TYPE_FRAGE, owner: user.did, payload })
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    alert("Fehler: " + JSON.stringify(err.details || err.error));
+    return;
+  }
+
+  document.getElementById("fragetext").value = "";
+  loadRecords();
+});
+
+function renderApp() {
+  const user = getCurrentUser();
+  if (user) {
+    loginView.classList.add("hidden");
+    appView.classList.remove("hidden");
+    currentUserLabel.textContent = user.label;
+    loadRecords();
+  } else {
+    loginView.classList.remove("hidden");
+    appView.classList.add("hidden");
+  }
+}
+
+renderApp();
+</script>
+</body>
+</html>
