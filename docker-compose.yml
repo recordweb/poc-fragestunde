@@ -12,6 +12,21 @@ services:
     networks:
       - poc_network
 
+  api:
+    build: ./apps/fragestunde-web/backend
+    container_name: poc-api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PGHOST: db
+      PGUSER: poc_user
+      PGPASSWORD: poc_recordweb
+      PGDATABASE: poc_db
+    networks:
+      - poc_network
+
+
   nginx:
     image: nginx:alpine
     container_name: poc-nginx
