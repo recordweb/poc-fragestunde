@@ -15,7 +15,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/backend/Dockerfile
+      dockerfile: apps/fragestunde-web/backend/Dockerfile
     container_name: poc-api
     restart: unless-stopped
     depends_on:
