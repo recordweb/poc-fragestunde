@@ -1,10 +1,10 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import Ajv from "ajv";
+import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
-const ajv = new Ajv({ allErrors: true, strict: false });
+const ajv = new Ajv2020({ allErrors: true, strict: false });
 addFormats(ajv);
 
 const schemaPath = path.resolve("/app/schemas/fragestunde-frage.schema.json");
