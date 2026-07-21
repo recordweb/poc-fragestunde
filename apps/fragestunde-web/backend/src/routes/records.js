@@ -83,6 +83,32 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
   res.json(updatedRecord);
 });
 
+// Draft bearbeiten — nur solange state='draft'
+router.put(/^\/(.+)$/, async (req, res) => {
+  const did = decodeURIComponent(req.params[0]);
+  if (did.endsWith("/finalize")) return res.status(404).json({ error: "Not found" });
+
+  const { rows } = await pool.query("SELECT * FROM records WHERE did = $1", [did]);
+  if (!rows.length) return res.status(404).json({ error: "Not found" });
+
+  const record = rows[0];
+  if (record.state !== "draft") {
+    return res.status(409).json({ error: "Nur Drafts können bearbeitet werden" });
+  }
+
+  const { payload } = req.body;
+  const { valid, errors } = validatePayload(record.record_type, payload);
+  if (!valid) return res.status(422).json({ error: "Payload ungültig", details: errors });
+
+  await pool.query(
+    `UPDATE records SET payload=$1, payload_hash=$2 WHERE did=$3`,
+    [payload, computePayloadHash(payload), did]
+  );
+
+  const updated = await pool.query("SELECT * FROM records WHERE did = $1", [did]);
+  res.json(updated.rows[0]);
+});
+
 // Extern lesbar — NUR finalisierte Records (muss NACH /finalize stehen wegen Pfad-Überlappung)
 router.get(/^\/(.+)$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);

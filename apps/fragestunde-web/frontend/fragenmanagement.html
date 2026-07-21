@@ -4,19 +4,24 @@
 <meta charset="utf-8">
 <title>Fragenmanagement · RecordWeb PoC</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
   h1 { font-size: 1.4rem; }
   .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
   .test-account { display: inline-block; margin: 4px; padding: 8px 12px; border: 1px solid #999; border-radius: 6px; cursor: pointer; background: #f5f5f7; }
   .test-account:hover { background: #e6e6ea; }
   textarea, select { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
-  button { padding: 8px 16px; cursor: pointer; }
-  .record { border-left: 4px solid #999; padding: 10px; margin: 10px 0; background: #fafafa; }
+  button { padding: 8px 16px; cursor: pointer; margin-right: 6px; }
+  .record { border-left: 4px solid #999; padding: 10px; margin: 10px 0; background: #fafafa; border-radius: 4px; }
   .record.draft { border-color: #e0a800; }
   .record.finalized { border-color: #2b8a3e; }
   .did { font-size: 0.75rem; color: #666; word-break: break-all; }
+  .meta-table { width: 100%; font-size: 0.85rem; margin-top: 8px; border-collapse: collapse; }
+  .meta-table td { padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: top; word-break: break-all; }
+  .meta-table td:first-child { font-weight: 600; width: 160px; color: #444; }
+  summary { cursor: pointer; font-size: 0.85rem; color: #444; margin-top: 6px; }
   #logoutBtn { float: right; }
   .hidden { display: none; }
+  pre { white-space: pre-wrap; font-size: 0.8rem; background: #f0f0f2; padding: 8px; border-radius: 4px; }
 </style>
 </head>
 <body>
@@ -34,13 +39,14 @@
   <h1>Fragenmanagement — <span id="currentUserLabel"></span></h1>
 
   <div class="card">
-    <h2>Neue Frage</h2>
+    <h2 id="formTitle">Neue Frage</h2>
     <select id="sessionSelect">
       <option>Herbstsession 2026</option>
       <option>Wintersession 2026</option>
     </select>
     <textarea id="fragetext" maxlength="500" rows="4" placeholder="Ihre Frage (max. 500 Zeichen)"></textarea>
     <button id="saveDraftBtn">Als Draft speichern</button>
+    <button id="cancelEditBtn" class="hidden">Abbrechen</button>
   </div>
 
   <div class="card">
@@ -64,6 +70,11 @@ const loginView = document.getElementById("loginView");
 const appView = document.getElementById("appView");
 const currentUserLabel = document.getElementById("currentUserLabel");
 const recordsList = document.getElementById("recordsList");
+const formTitle = document.getElementById("formTitle");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+const saveDraftBtn = document.getElementById("saveDraftBtn");
+
+let editingDid = null;
 
 function getCurrentUser() {
   const key = sessionStorage.getItem("currentUserKey");
@@ -90,10 +101,12 @@ async function loadRecords() {
   if (!user) return;
   const res = await fetch(API_BASE);
   const all = await res.json();
-  const mine = user === USERS.admin
-    ? all
-    : all.filter(r => r.owner === user.did);
+  const mine = user === USERS.admin ? all : all.filter(r => r.owner === user.did);
   renderRecords(mine);
+}
+
+function metaRow(label, value) {
+  return `<tr><td>${label}</td><td>${value ?? "–"}</td></tr>`;
 }
 
 function renderRecords(records) {
@@ -110,7 +123,28 @@ function renderRecords(records) {
       ${r.payload.fragetext}<br>
       <span class="did">${r.did}</span>
       ${r.snapshot_hash ? `<br><span class="did">Hash: ${r.snapshot_hash}</span>` : ""}
-      ${r.state === "draft" ? `<br><button class="finalizeBtn" data-did="${r.did}">Finalisieren</button>` : ""}
+      <br>
+      ${r.state === "draft" ? `<button class="editBtn" data-did="${r.did}">Bearbeiten</button>
+        <button class="finalizeBtn" data-did="${r.did}">Finalisieren</button>` : ""}
+      <details>
+        <summary>Alle Metadaten anzeigen</summary>
+        <table class="meta-table">
+          ${metaRow("did", r.did)}
+          ${metaRow("recordType", r.record_type)}
+          ${metaRow("schemaVersion", r.schema_version)}
+          ${metaRow("state", r.state)}
+          ${metaRow("created", r.created)}
+          ${metaRow("finalized", r.finalized)}
+          ${metaRow("owner", r.owner)}
+          ${metaRow("parents", JSON.stringify(r.parents))}
+          ${metaRow("payloadHash", r.payload_hash)}
+          ${metaRow("payloadFormat", r.payload_format)}
+          ${metaRow("snapshotHash", r.snapshot_hash)}
+          ${metaRow("signature", r.signature)}
+        </table>
+        <p><strong>Payload:</strong></p>
+        <pre>${JSON.stringify(r.payload, null, 2)}</pre>
+      </details>
     `;
     recordsList.appendChild(div);
   });
@@ -118,7 +152,32 @@ function renderRecords(records) {
   document.querySelectorAll(".finalizeBtn").forEach(btn => {
     btn.addEventListener("click", () => finalizeRecord(btn.dataset.did));
   });
+  document.querySelectorAll(".editBtn").forEach(btn => {
+    btn.addEventListener("click", () => startEdit(btn.dataset.did, records));
+  });
 }
+
+function startEdit(did, records) {
+  const record = records.find(r => r.did === did);
+  if (!record) return;
+  editingDid = did;
+  document.getElementById("sessionSelect").value = record.payload.session;
+  document.getElementById("fragetext").value = record.payload.fragetext;
+  formTitle.textContent = "Frage bearbeiten";
+  saveDraftBtn.textContent = "Änderungen speichern";
+  cancelEditBtn.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  editingDid = null;
+  document.getElementById("fragetext").value = "";
+  formTitle.textContent = "Neue Frage";
+  saveDraftBtn.textContent = "Als Draft speichern";
+  cancelEditBtn.classList.add("hidden");
+}
+
+cancelEditBtn.addEventListener("click", cancelEdit);
 
 async function finalizeRecord(did) {
   const ok = confirm(
@@ -129,7 +188,7 @@ async function finalizeRecord(did) {
   loadRecords();
 }
 
-document.getElementById("saveDraftBtn").addEventListener("click", async () => {
+saveDraftBtn.addEventListener("click", async () => {
   const user = getCurrentUser();
   const fragetext = document.getElementById("fragetext").value.trim();
   const session = document.getElementById("sessionSelect").value;
@@ -146,11 +205,20 @@ document.getElementById("saveDraftBtn").addEventListener("click", async () => {
     eingereicht_am: new Date().toISOString()
   };
 
-  const res = await fetch(API_BASE, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ recordType: RECORD_TYPE_FRAGE, owner: user.did, payload })
-  });
+  let res;
+  if (editingDid) {
+    res = await fetch(`${API_BASE}/${encodeURIComponent(editingDid)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payload })
+    });
+  } else {
+    res = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordType: RECORD_TYPE_FRAGE, owner: user.did, payload })
+    });
+  }
 
   if (!res.ok) {
     const err = await res.json();
@@ -158,7 +226,7 @@ document.getElementById("saveDraftBtn").addEventListener("click", async () => {
     return;
   }
 
-  document.getElementById("fragetext").value = "";
+  cancelEdit();
   loadRecords();
 });
 
