@@ -19,3 +19,4 @@ jobs:
             cd /opt/poc-fragestunde
             git pull origin main
             docker compose up -d --build
+            docker exec poc-nginx nginx -s reload
