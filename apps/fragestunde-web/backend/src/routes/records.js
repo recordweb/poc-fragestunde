@@ -4,7 +4,6 @@ import pool from "../db.js";
 import { validatePayload, schemaVersionHash, RECORD_TYPE_FRAGE } from "../schemas.js";
 import { computeSnapshotHash, computePayloadHash } from "../crypto.js";
 import { sendLdnNotification } from "../ldn.js";
-import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
 const NAMESPACE_FRAGENMANAGEMENT = "a3f9e21c";
