@@ -15,6 +15,9 @@ Alle Pfade sind relativ zu `https://vps.recordweb.dev`.
 >`/fragenmanagement/api/*` bündelt alle internen Anwendungs-Endpunkte (Records, Notifications, Logs).  
 >`/fragenmanagement/did/*` ist bewusst getrennt davon, da DID-Auflösung eine system­übergreifende Interoperabilitäts-Schnittstelle ist (analog zu W3C DID Core), nicht Teil der internen App-API.
 
+- **Frontend:** https://vps.recordweb.dev/fragenmanagement/
+- **OpenAPI:** https://vps.recordweb.dev/fragenmanagement/api-docs/
+
 ---
 
 ## Records
