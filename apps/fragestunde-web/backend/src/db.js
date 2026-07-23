@@ -65,9 +65,17 @@ export async function initSchema() {
       signature             TEXT
     );
 
-    CREATE INDEX idx_snapshots_did ON record_snapshots(did);
+    CREATE INDEX IF NOT EXISTS idx_snapshots_did ON record_snapshots(did);
 
-    ALTER TABLE records ADD COLUMN current_snapshot_id UUID REFERENCES record_snapshots(id);
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'records' AND column_name = 'current_snapshot_id'
+      ) THEN
+        ALTER TABLE records ADD COLUMN current_snapshot_id UUID REFERENCES record_snapshots(id);
+      END IF;
+    END $$;
   `);
 }
 
