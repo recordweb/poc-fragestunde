@@ -438,7 +438,7 @@ function renderApp() {
     loadRecords();
 
     const notifCard = document.getElementById("notificationsCard");
-    if (user.isAdmin) {
+    if (user && user.isAdmin) {
       notifCard.style.display = "block";
       loadNotifications();
     } else {
