@@ -1,5 +1,5 @@
 {
-  "namespace": "bk.admin.ch",
+  "namespace": "b7d4c810",
   "name": "Bundeskanzlei",
   "baseEndpoint": "https://vps.recordweb.dev/resolver/bk/1.0/identifiers",
   "controller": "did:rwp:b7d4c810:system/rwp-node",

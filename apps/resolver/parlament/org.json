@@ -1,5 +1,5 @@
 {
-  "namespace": "parlament.ch",
+  "namespace": "a3f9e21c",
   "name": "Parlamentsdienste Schweiz",
   "baseEndpoint": "https://vps.recordweb.dev/resolver/parlament/1.0/identifiers",
   "controller": "did:rwp:a3f9e21c:system/rwp-node",
