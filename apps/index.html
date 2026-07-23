@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>RecordWeb PoC — Fragestunde</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 820px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.1rem; margin-top: 32px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  a.linkBtn { display: inline-block; margin: 4px 6px 4px 0; padding: 8px 12px; border: 1px solid #999;
+    border-radius: 6px; background: #f5f5f7; text-decoration: none; color: #1a1a2e; font-size: 0.9rem; }
+  a.linkBtn:hover { background: #e6e6ea; }
+  p.hint { font-size: 0.85rem; color: #666; }
+  code { background: #f0f0f2; padding: 1px 5px; border-radius: 3px; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<h1>RecordWeb PoC — Fragestunde</h1>
+<p class="hint">Proof of Concept zur parlamentarischen Fragestunde des Schweizer Parlaments. Demonstriert DID-basierte Record-Identität, Cross-System-Referenzen und LDN-Notifications gemäss RWP v0.1.</p>
+
+<div class="card">
+  <h2>Parlamentsdienste</h2>
+  <a class="linkBtn" href="/fragenmanagement/">Fragenmanagement (App)</a>
+  <a class="linkBtn" href="/fragenmanagement/api-docs/">API-Dokumentation (Swagger)</a>
+  <a class="linkBtn" href="/resolver/parlament/frontend/admin.html">Resolver Admin</a>
+  <a class="linkBtn" href="/resolver/parlament/1.0/persons">Resolver: Personen (JSON)</a>
+</div>
+
+<div class="card">
+  <h2>Bundeskanzlei</h2>
+  <a class="linkBtn" href="/antwortmanagement/">Antwortmanagement (App)</a>
+  <a class="linkBtn" href="/resolver/bk/frontend/admin.html">Resolver Admin</a>
+  <a class="linkBtn" href="/resolver/bk/1.0/persons">Resolver: Personen (JSON)</a>
+</div>
+
+<div class="card">
+  <h2>Über diesen PoC</h2>
+  <p class="hint">Quellcode und ausführliche Dokumentation: <code>github.com/recordweb/poc-fragestunde</code></p>
+  <p class="hint">Dieser PoC ist ein fiktiver Demonstrator mit minimalem realem Bezug — nicht mit den beteiligten Parteien abgestimmt.</p>
+</div>
+
+</body>
+</html>
