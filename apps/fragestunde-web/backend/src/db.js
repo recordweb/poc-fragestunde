@@ -46,7 +46,7 @@ export async function initSchema() {
       message    TEXT NOT NULL,
       created    TIMESTAMPTZ NOT NULL DEFAULT now()
     );
-    CREATE TABLE record_snapshots (
+    CREATE TABLE IF NOT EXISTS record_snapshots (
       id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       did                   TEXT NOT NULL,
       snapshot_hash         TEXT NOT NULL,
