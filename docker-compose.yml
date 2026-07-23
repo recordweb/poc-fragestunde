@@ -25,6 +25,7 @@ services:
       PGUSER: poc_user
       PGPASSWORD: poc_recordweb
       PGDATABASE: poc_db
+      PUBLIC_BASE_URL: https://vps.recordweb.dev
     volumes:
       - ./schemas:/app/schemas:ro
     networks:

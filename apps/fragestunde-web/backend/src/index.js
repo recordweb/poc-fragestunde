@@ -3,6 +3,7 @@ import cors from "cors";
 import pool from "./db.js";
 import { initSchema } from "./db.js";
 import recordsRouter from "./routes/records.js";
+import didRouter from "./routes/did.js";
 
 const app = express();
 app.use(cors());
@@ -21,6 +22,8 @@ app.get("/logs", async (req, res) => {
 });
 
 app.use("/records", recordsRouter);
+
+app.use("/fragestunde/did", didRouter);
 
 const PORT = process.env.PORT || 3000;
 
