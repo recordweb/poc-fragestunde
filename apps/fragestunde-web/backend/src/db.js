@@ -46,6 +46,28 @@ export async function initSchema() {
       message    TEXT NOT NULL,
       created    TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+    CREATE TABLE record_snapshots (
+      id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      did                   TEXT NOT NULL,
+      snapshot_hash         TEXT NOT NULL,
+      parents               JSONB NOT NULL DEFAULT '[]',
+      state                 TEXT NOT NULL CHECK (state IN ('draft','finalized')),
+      record_type           TEXT NOT NULL,
+      schema_version        TEXT NOT NULL,
+      owner                 TEXT NOT NULL,
+      payload               JSONB NOT NULL,
+      payload_hash          TEXT NOT NULL,
+      payload_format        TEXT NOT NULL,
+      payload_representations JSONB,
+      correction_reason     TEXT,
+      created               TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finalized             TIMESTAMPTZ,
+      signature             TEXT
+    );
+
+    CREATE INDEX idx_snapshots_did ON record_snapshots(did);
+
+    ALTER TABLE records ADD COLUMN current_snapshot_id UUID REFERENCES record_snapshots(id);
   `);
 }
 

@@ -14,9 +14,11 @@ export function sha256Hex(buffer) {
 }
 
 export function computeSnapshotHash(metadataWithoutHash, payload) {
+  const canonical = canonicalize(metadataWithoutHash);
   const payloadBytes = Buffer.from(JSON.stringify(payload));
-  const canonicalMeta = canonicalize(metadataWithoutHash);
-  return sha256Hex(Buffer.concat([Buffer.from(canonicalMeta), payloadBytes]));
+  return "sha256:" + crypto.createHash("sha256")
+    .update(Buffer.concat([Buffer.from(canonical), payloadBytes]))
+    .digest("hex");
 }
 
 export function computePayloadHash(payload) {
