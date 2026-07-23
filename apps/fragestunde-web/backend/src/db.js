@@ -11,20 +11,21 @@ const pool = new pg.Pool({
 export async function initSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS records (
-      did              TEXT PRIMARY KEY,
+      did               TEXT PRIMARY KEY,
       snapshot_hash     TEXT,
-      record_type       TEXT NOT NULL,
-      schema_version     TEXT NOT NULL,
+      record_type       TEXT,
+      schema_version    TEXT,
       state             TEXT NOT NULL DEFAULT 'draft',
       created           TIMESTAMPTZ NOT NULL DEFAULT now(),
       finalized         TIMESTAMPTZ,
       owner             TEXT NOT NULL,
       parents           JSONB NOT NULL DEFAULT '[]',
-      payload_hash       TEXT,
-      payload_format     TEXT NOT NULL DEFAULT 'application/json',
+      payload_hash      TEXT,
+      payload_format    TEXT NOT NULL DEFAULT 'application/json',
       signature         TEXT,
-      payload           JSONB NOT NULL
+      payload           JSONB
     );
+
     CREATE TABLE IF NOT EXISTS ldn_notifications (
       id                TEXT PRIMARY KEY,
       record_did        TEXT NOT NULL,
@@ -32,6 +33,7 @@ export async function initSchema() {
       published         TIMESTAMPTZ NOT NULL DEFAULT now(),
       payload           JSONB NOT NULL
     );
+
     CREATE TABLE IF NOT EXISTS solid_links (
       id                TEXT PRIMARY KEY,
       record_did        TEXT NOT NULL,
@@ -40,29 +42,31 @@ export async function initSchema() {
       linked_by         TEXT NOT NULL,
       linked_at         TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
     CREATE TABLE IF NOT EXISTS server_logs (
       id         SERIAL PRIMARY KEY,
       level      TEXT NOT NULL DEFAULT 'info',
       message    TEXT NOT NULL,
       created    TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
     CREATE TABLE IF NOT EXISTS record_snapshots (
-      id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      did                   TEXT NOT NULL,
-      snapshot_hash         TEXT NOT NULL,
-      parents               JSONB NOT NULL DEFAULT '[]',
-      state                 TEXT NOT NULL CHECK (state IN ('draft','finalized')),
-      record_type           TEXT NOT NULL,
-      schema_version        TEXT NOT NULL,
-      owner                 TEXT NOT NULL,
-      payload               JSONB NOT NULL,
-      payload_hash          TEXT NOT NULL,
-      payload_format        TEXT NOT NULL,
-      payload_representations JSONB,
-      correction_reason     TEXT,
-      created               TIMESTAMPTZ NOT NULL DEFAULT now(),
-      finalized             TIMESTAMPTZ,
-      signature             TEXT
+      id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      did                      TEXT NOT NULL,
+      snapshot_hash            TEXT NOT NULL,
+      parents                  JSONB NOT NULL DEFAULT '[]',
+      state                    TEXT NOT NULL CHECK (state IN ('draft','finalized')),
+      record_type              TEXT NOT NULL,
+      schema_version           TEXT NOT NULL,
+      owner                    TEXT NOT NULL,
+      payload                  JSONB NOT NULL,
+      payload_hash             TEXT NOT NULL,
+      payload_format           TEXT NOT NULL,
+      payload_representations  JSONB,
+      correction_reason        TEXT,
+      created                  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      finalized                TIMESTAMPTZ,
+      signature                TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_snapshots_did ON record_snapshots(did);
@@ -76,6 +80,10 @@ export async function initSchema() {
         ALTER TABLE records ADD COLUMN current_snapshot_id UUID REFERENCES record_snapshots(id);
       END IF;
     END $$;
+
+    ALTER TABLE records ALTER COLUMN payload DROP NOT NULL;
+    ALTER TABLE records ALTER COLUMN record_type DROP NOT NULL;
+    ALTER TABLE records ALTER COLUMN schema_version DROP NOT NULL;
   `);
 }
 
