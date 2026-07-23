@@ -145,7 +145,6 @@ function renderRecords(records) {
         <button class="finalizeBtn" data-did="${r.did}">Finalisieren</button>
         <button class="finalizePdfBtn" data-did="${r.did}">Als PDF finalisieren</button>` : ""}
       ${r.state === "finalized" ? `<button class="newVersionBtn" data-did="${r.did}">Neue Version starten</button>` : ""}
-      <button class="historyBtn" data-did="${r.did}">Historie anzeigen</button>
       <details>
         <summary>Alle Metadaten anzeigen</summary>
         <table class="meta-table">
@@ -181,6 +180,10 @@ function renderRecords(records) {
           <button class="solidLinkBtn" data-did="${r.did}">In Solid Pod verlinken</button>
           <div class="solidLinksList" data-did="${r.did}"></div>
         ` : ""}
+      </details>
+      <details class="historyDetails" data-did="${r.did}">
+        <summary>Historie anzeigen</summary>
+        <div class="historyBox">Lädt…</div>
       </details>
     `;
     recordsList.appendChild(div);
@@ -247,36 +250,6 @@ async function startNewVersion(did) {
     return;
   }
   loadRecords();
-}
-
-async function showHistory(did, btn) {
-  const existing = btn.parentElement.querySelector(".historyBox");
-  if (existing) {
-    existing.remove();
-    btn.textContent = "Historie anzeigen";
-    return;
-  }
-
-  const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/history`);
-  const history = await res.json();
-
-  const box = document.createElement("div");
-  box.className = "historyBox";
-  box.innerHTML = `
-    <p><strong>Version Graph (${history.length} Snapshot${history.length !== 1 ? "s" : ""}):</strong></p>
-    ${history.map((s, i) => `
-      <div class="historyNode">
-        <strong>${i + 1}. [${s.state}]</strong><br>
-        snapshotHash: ${s.snapshot_hash}<br>
-        parents: ${JSON.stringify(s.parents)}<br>
-        created: ${s.created}
-        ${s.finalized ? `<br>finalized: ${s.finalized}` : ""}
-        ${s.correction_reason ? `<br>correctionReason: ${s.correction_reason}` : ""}
-      </div>
-    `).join("")}
-  `;
-  btn.parentElement.appendChild(box);
-  btn.textContent = "Historie ausblenden";
 }
 
 saveDraftBtn.addEventListener("click", async () => {
@@ -400,6 +373,32 @@ recordsList.addEventListener("click", (e) => {
     linkToSolid(e.target.dataset.did);
   }
 });
+
+recordsList.addEventListener("toggle", async (e) => {
+  if (!e.target.classList.contains("historyDetails")) return;
+  if (!e.target.open) return;
+
+  const did = e.target.dataset.did;
+  const box = e.target.querySelector(".historyBox");
+  box.textContent = "Lädt…";
+
+  const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/history`);
+  const history = await res.json();
+
+  box.innerHTML = `
+    <p><strong>Version Graph (${history.length} Snapshot${history.length !== 1 ? "s" : ""}):</strong></p>
+    ${history.map((s, i) => `
+      <div class="historyNode">
+        <strong>${i + 1}. [${s.state}]</strong><br>
+        snapshotHash: ${s.snapshot_hash}<br>
+        parents: ${JSON.stringify(s.parents)}<br>
+        created: ${s.created}
+        ${s.finalized ? `<br>finalized: ${s.finalized}` : ""}
+        ${s.correction_reason ? `<br>correctionReason: ${s.correction_reason}` : ""}
+      </div>
+    `).join("")}
+  `;
+}, true);
 
 async function loadLogs() {
   const res = await fetch("/api/logs");
