@@ -32,9 +32,7 @@
 <div id="loginView" class="card">
   <h1>Parlamentsdienste Schweiz · RecordWeb PoC</h1>
   <p>Test-Accounts (klicken zum Einloggen):</p>
-  <div class="test-account" data-user="bernasconi">maria.bernasconi — Nationalrätin</div>
-  <div class="test-account" data-user="frei">thomas.frei — Nationalrat</div>
-  <div class="test-account" data-user="admin">admin.parlamentsdienste — Admin</div>
+  <div id="testAccountsList">Lädt Personen vom Resolver…</div>
 </div>
 
 <div id="appView" class="hidden">
@@ -72,11 +70,8 @@
 <script>
 const API_BASE = "/fragenmanagement/api/records";
 
-const USERS = {
-  bernasconi: { did: "did:rwp:f2c81e05:self", label: "Maria Bernasconi (Nationalrätin)" },
-  frei:       { did: "did:rwp:c6cdee0b:self", label: "Thomas Frei (Nationalrat)" },
-  admin:      { did: "did:rwp:a3f9e21c:system/admin", label: "Admin Parlamentsdienste" }
-};
+const RESOLVER_BASE = "/resolver/parlament";
+let currentPersons = [];
 
 const RECORD_TYPE_FRAGE = "did:rwp:a3f9e21c:schema:fragestunde-frage";
 
@@ -93,12 +88,23 @@ let editingDid = null;
 let lastLoadedRecords = [];
 
 function getCurrentUser() {
-  const key = sessionStorage.getItem("currentUserKey");
-  return key ? USERS[key] : null;
+  const raw = sessionStorage.getItem("currentUser");
+  return raw ? JSON.parse(raw) : null;
 }
 
-function login(key) {
-  sessionStorage.setItem("currentUserKey", key);
+async function login(kuerzel) {
+  const res = await fetch(`${RESOLVER_BASE}/1.0/login/${encodeURIComponent(kuerzel)}`);
+  if (!res.ok) {
+    alert("Login fehlgeschlagen: Person nicht gefunden.");
+    return;
+  }
+  const person = await res.json();
+  sessionStorage.setItem("currentUser", JSON.stringify({
+    did: person.did,
+    label: `${person.name} (${person.role})`,
+    kuerzel: person.kuerzel,
+    isAdmin: person.kuerzel === "admin"
+  }));
   renderApp();
 }
 
@@ -107,9 +113,23 @@ function logout() {
   renderApp();
 }
 
-document.querySelectorAll(".test-account").forEach(el => {
-  el.addEventListener("click", () => login(el.dataset.user));
-});
+async function loadPersonsFromResolver() {
+  const res = await fetch(`${RESOLVER_BASE}/1.0/persons`);
+  currentPersons = await res.json();
+  const list = document.getElementById("testAccountsList");
+  list.innerHTML = "";
+  currentPersons.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "test-account";
+    div.dataset.kuerzel = p.kuerzel;
+    div.textContent = `${p.kuerzel} — ${p.name} (${p.role})`;
+    list.appendChild(div);
+  });
+  document.querySelectorAll(".test-account").forEach(el => {
+    el.addEventListener("click", () => login(el.dataset.kuerzel));
+  });
+}
+
 document.getElementById("logoutBtn").addEventListener("click", logout);
 
 async function loadRecords() {
@@ -117,7 +137,7 @@ async function loadRecords() {
   if (!user) return;
   const res = await fetch(API_BASE);
   const all = await res.json();
-  const mine = user === USERS.admin ? all : all.filter(r => r.owner === user.did);
+  const mine = user.isAdmin ? all : all.filter(r => r.owner === user.did);
   renderRecords(mine);
 }
 
@@ -418,7 +438,7 @@ function renderApp() {
     loadRecords();
 
     const notifCard = document.getElementById("notificationsCard");
-    if (user === USERS.admin) {
+    if (user.isAdmin) {
       notifCard.style.display = "block";
       loadNotifications();
     } else {
@@ -429,7 +449,7 @@ function renderApp() {
     appView.classList.add("hidden");
   }
   const logsCard = document.getElementById("logsCard");
-  if (user === USERS.admin) {
+  if (user && user.isAdmin) {
     logsCard.style.display = "block";
     loadLogs();
   } else {
@@ -437,6 +457,7 @@ function renderApp() {
   }
 }
 
+loadPersonsFromResolver();
 renderApp();
 </script>
 </body>
