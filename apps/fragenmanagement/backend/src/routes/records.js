@@ -125,7 +125,7 @@ router.put(/^\/(.+)$/, async (req, res, next) => {
 
   await pool.query(
     `UPDATE record_snapshots SET payload=$1, payload_hash=$2 WHERE id=$3`,
-    [payload, computePayloadHash(payload), record.current_snapshot_id || record.id]
+    [payload, computePayloadHash(payload), record.id]
   );
 
   res.json(await getFullRecord(did));

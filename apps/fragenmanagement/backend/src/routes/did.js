@@ -24,7 +24,7 @@ router.get(/^\/(.+)$/, async (req, res) => {
   const didDocument = {
     "@context": "https://www.w3.org/ns/did/v1",
     id: record.did,
-    recordEndpoint: `${PUBLIC_BASE_URL}/fragestunde/api/records/${encodeURIComponent(record.did)}`,
+    recordEndpoint: `${PUBLIC_BASE_URL}/fragenmanagement/api/records/${encodeURIComponent(record.did)}`,
     created: record.record_created,
     updated: record.snapshot_created || record.record_created,
     currentVersion: record.snapshot_hash || null,

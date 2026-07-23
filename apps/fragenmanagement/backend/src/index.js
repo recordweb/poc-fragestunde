@@ -21,9 +21,9 @@ app.get("/logs", async (req, res) => {
   res.json(rows);
 });
 
-app.use("/records", recordsRouter);
+app.use("/fragenmanagement/records", recordsRouter);
 
-app.use("/fragestunde/did", didRouter);
+app.use("/fragenmanagement/did", didRouter);
 
 const PORT = process.env.PORT || 3000;
 
