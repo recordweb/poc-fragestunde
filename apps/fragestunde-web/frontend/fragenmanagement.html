@@ -22,6 +22,9 @@
   #logoutBtn { float: right; }
   .hidden { display: none; }
   pre { white-space: pre-wrap; font-size: 0.8rem; background: #f0f0f2; padding: 8px; border-radius: 4px; }
+  .historyBox { margin-top: 8px; padding: 8px 10px; background: #f0f0f2; border-radius: 4px; font-size: 0.8rem; }
+  .historyNode { padding: 6px 0; border-bottom: 1px solid #ddd; word-break: break-all; }
+  .historyNode:last-child { border-bottom: none; }
 </style>
 </head>
 <body>
@@ -246,13 +249,34 @@ async function startNewVersion(did) {
   loadRecords();
 }
 
-async function showHistory(did) {
+async function showHistory(did, btn) {
+  const existing = btn.parentElement.querySelector(".historyBox");
+  if (existing) {
+    existing.remove();
+    btn.textContent = "Historie anzeigen";
+    return;
+  }
+
   const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/history`);
   const history = await res.json();
-  const text = history.map((s, i) =>
-    `${i + 1}. [${s.state}]\n   snapshotHash: ${s.snapshot_hash}\n   parents: ${JSON.stringify(s.parents)}\n   created: ${s.created}`
-  ).join("\n\n");
-  alert(text || "Keine Historie gefunden.");
+
+  const box = document.createElement("div");
+  box.className = "historyBox";
+  box.innerHTML = `
+    <p><strong>Version Graph (${history.length} Snapshot${history.length !== 1 ? "s" : ""}):</strong></p>
+    ${history.map((s, i) => `
+      <div class="historyNode">
+        <strong>${i + 1}. [${s.state}]</strong><br>
+        snapshotHash: ${s.snapshot_hash}<br>
+        parents: ${JSON.stringify(s.parents)}<br>
+        created: ${s.created}
+        ${s.finalized ? `<br>finalized: ${s.finalized}` : ""}
+        ${s.correction_reason ? `<br>correctionReason: ${s.correction_reason}` : ""}
+      </div>
+    `).join("")}
+  `;
+  btn.parentElement.appendChild(box);
+  btn.textContent = "Historie ausblenden";
 }
 
 saveDraftBtn.addEventListener("click", async () => {
@@ -367,7 +391,7 @@ recordsList.addEventListener("click", (e) => {
     startNewVersion(e.target.dataset.did);
   }
   if (e.target.classList.contains("historyBtn")) {
-    showHistory(e.target.dataset.did);
+    showHistory(e.target.dataset.did, e.target);
   }
   if (e.target.classList.contains("editBtn")) {
     startEdit(e.target.dataset.did, lastLoadedRecords);
