@@ -37,6 +37,7 @@ async function createSnapshot({
     ...(finalized ? { finalized } : {})
   };
   const snapshotHash = computeSnapshotHash(metadataWithoutHash, payload);
+  const payloadRepresentationsJson = payloadRepresentations ? JSON.stringify(payloadRepresentations) : null;
 
   const { rows } = await pool.query(
     `INSERT INTO record_snapshots
@@ -47,7 +48,7 @@ async function createSnapshot({
      RETURNING *`,
     [
       did, snapshotHash, JSON.stringify(parents), state, recordType, schemaVersion, owner,
-      payload, payloadHash, payloadFormat, payloadRepresentations,
+      payload, payloadHash, payloadFormat, payloadRepresentationsJson,
       correctionReason, finalized, state === "finalized" ? "z_PLACEHOLDER_PoC_signature" : null
     ]
   );
