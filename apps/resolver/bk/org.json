@@ -1,0 +1,29 @@
+{
+  "namespace": "bk.admin.ch",
+  "name": "Bundeskanzlei",
+  "baseEndpoint": "https://vps.recordweb.dev/resolver/bk/1.0/identifiers",
+  "controller": "did:rwp:b7d4c810:system/rwp-node",
+  "testPersons": [
+    {
+      "kuerzel": "dw",
+      "name": "Daniel Wyss",
+      "role": "Sachbearbeiter",
+      "type": "employee",
+      "slug": "daniel-wyss"
+    },
+    {
+      "kuerzel": "sh",
+      "name": "Sandra Huber",
+      "role": "Bundesrätin EJPD",
+      "type": "employee",
+      "slug": "sandra-huber"
+    },
+    {
+      "kuerzel": "admin",
+      "name": "Admin BK",
+      "role": "Admin",
+      "type": "employee",
+      "slug": "admin"
+    }
+  ]
+}

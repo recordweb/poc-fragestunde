@@ -1,0 +1,14 @@
+{
+  "name": "rwp-poc-resolver",
+  "version": "0.1.0",
+  "description": "Mini DID Resolver for RecordWeb PoC",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "better-sqlite3": "^11.3.0",
+    "uuid": "^9.0.1"
+  }
+}

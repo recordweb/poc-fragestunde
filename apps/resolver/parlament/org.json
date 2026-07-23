@@ -1,0 +1,29 @@
+{
+  "namespace": "parlament.ch",
+  "name": "Parlamentsdienste Schweiz",
+  "baseEndpoint": "https://vps.recordweb.dev/resolver/parlament/1.0/identifiers",
+  "controller": "did:rwp:a3f9e21c:system/rwp-node",
+  "testPersons": [
+    {
+      "kuerzel": "mb",
+      "name": "Maria Bernasconi",
+      "role": "Nationalrätin",
+      "type": "independent",
+      "personalNamespace": "f2c81e05"
+    },
+    {
+      "kuerzel": "tf",
+      "name": "Thomas Frei",
+      "role": "Nationalrat",
+      "type": "independent",
+      "personalNamespace": "c6cdee0b"
+    },
+    {
+      "kuerzel": "admin",
+      "name": "Admin Parlamentsdienste",
+      "role": "Admin",
+      "type": "employee",
+      "slug": "admin"
+    }
+  ]
+}

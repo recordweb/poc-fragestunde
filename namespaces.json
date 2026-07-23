@@ -1,10 +1,21 @@
 {
   "generationMethod": "crypto.randomBytes(4).toString('hex') — 4 zufällige Bytes, hex-kodiert zu 8 Zeichen. Kollisionsprüfung MUSS bei Registrierung im Resolver erfolgen, da das Format selbst keine Eindeutigkeit garantiert.",
-  "namespaces": [
-    { "id": "a3f9e21c", "owner": "Parlamentsdienste (Fragenmanagement)" },
-    { "id": "b7d4c810", "owner": "Bundeskanzlei (Antwortmanagement)" },
-    { "id": "f2c81e05", "owner": "Maria Bernasconi (Nationalrätin, persönlich)" },
-    { "id": "c6cdee0b", "owner": "Thomas Frei (Nationalrat, persönlich)"},
-    { "id": "9e4a730b", "owner": "Lukas Meier (Journalist, persönlich)" }
-  ]
+  "namespaces": {
+    "a3f9e21c": {
+      "organisation": "Parlamentsdienste Schweiz",
+      "resolverEndpoint": "https://vps.recordweb.dev/resolver/parlament/1.0/identifiers"
+    },
+    "b7d4c810": {
+      "organisation": "Bundeskanzlei",
+      "resolverEndpoint": "https://vps.recordweb.dev/resolver/bk/1.0/identifiers"
+    },
+    "f2c81e05": {
+      "organisation": "Maria Bernasconi (persönlicher Namespace)",
+      "resolverEndpoint": "https://vps.recordweb.dev/resolver/parlament/1.0/identifiers"
+    },
+    "c6cdee0b": {
+      "organisation": "Thomas Frei (persönlicher Namespace)",
+      "resolverEndpoint": "https://vps.recordweb.dev/resolver/parlament/1.0/identifiers"
+    }
+  }
 }
