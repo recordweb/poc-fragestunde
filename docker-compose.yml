@@ -34,6 +34,7 @@ services:
   resolver-parlament:
     build:
       context: ./apps/resolver
+      dockerfile: backend/Dockerfile
     container_name: poc-resolver-parlament
     restart: unless-stopped
     environment:
@@ -47,6 +48,7 @@ services:
   resolver-bk:
     build:
       context: ./apps/resolver
+      dockerfile: backend/Dockerfile
     container_name: poc-resolver-bk
     restart: unless-stopped
     environment:

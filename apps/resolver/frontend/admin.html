@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>RWP Resolver Admin</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
+  h1 { font-size: 1.4rem; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; margin-top: 10px; font-size: 0.85rem; font-weight: 600; color: #444; }
+  input, select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+  button { padding: 8px 16px; cursor: pointer; margin-top: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.9rem; }
+  td, th { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; }
+  .did { font-size: 0.75rem; color: #666; word-break: break-all; }
+  .deleteBtn { background: #fbeaea; border: 1px solid #d66; border-radius: 4px; }
+  .error { color: #c0392b; font-size: 0.85rem; margin-top: 8px; }
+  .success { color: #2b8a3e; font-size: 0.85rem; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>RWP Resolver Admin — <span id="orgName">...</span></h1>
+
+<div class="card">
+  <h2>Neue Person anlegen</h2>
+  <label>Name</label>
+  <input id="nameInput" placeholder="z.B. Peter Muster">
+
+  <label>Rolle</label>
+  <input id="roleInput" placeholder="z.B. Nationalrat">
+
+  <label>Kürzel (für Login)</label>
+  <input id="kuerzelInput" placeholder="z.B. pm">
+
+  <label>Typ</label>
+  <select id="typeInput">
+    <option value="employee">Angestellt (Organisation)</option>
+    <option value="independent">Unabhängig (eigener Namespace)</option>
+  </select>
+
+  <button id="createBtn">Person anlegen</button>
+  <div id="formMessage"></div>
+</div>
+
+<div class="card">
+  <h2>Registrierte Personen</h2>
+  <table>
+    <thead>
+      <tr><th>Kürzel</th><th>Name</th><th>Rolle</th><th>DID</th><th></th></tr>
+    </thead>
+    <tbody id="personsTable"></tbody>
+  </table>
+</div>
+
+<script>
+const API_BASE = window.location.pathname.split('/frontend')[0];
+
+async function loadStatus() {
+  const res = await fetch(API_BASE + '/');
+  const data = await res.json();
+  document.getElementById('orgName').textContent = data.organisation + ' (' + data.namespace + ')';
+}
+
+async function loadPersons() {
+  const res = await fetch(API_BASE + '/1.0/persons');
+  const persons = await res.json();
+  const tbody = document.getElementById('personsTable');
+  tbody.innerHTML = '';
+  persons.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.kuerzel}</td>
+      <td>${p.name}</td>
+      <td>${p.role}</td>
+      <td class="did">${p.did}</td>
+      <td><button class="deleteBtn" data-did="${p.did}">Löschen</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.querySelectorAll('.deleteBtn').forEach(btn => {
+    btn.addEventListener('click', () => deletePerson(btn.dataset.did));
+  });
+}
+
+async function deletePerson(did) {
+  if (!confirm(`Person mit DID ${did} wirklich löschen?`)) return;
+  const res = await fetch(API_BASE + '/1.0/persons/' + encodeURIComponent(did), { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json();
+    alert('Fehler: ' + err.message);
+    return;
+  }
+  loadPersons();
+}
+
+document.getElementById('createBtn').addEventListener('click', async () => {
+  const name = document.getElementById('nameInput').value.trim();
+  const role = document.getElementById('roleInput').value.trim();
+  const kuerzel = document.getElementById('kuerzelInput').value.trim();
+  const type = document.getElementById('typeInput').value;
+  const msgDiv = document.getElementById('formMessage');
+  msgDiv.textContent = '';
+  msgDiv.className = '';
+
+  if (!name || !role || !kuerzel) {
+    msgDiv.textContent = 'Bitte alle Felder ausfüllen.';
+    msgDiv.className = 'error';
+    return;
+  }
+
+  const res = await fetch(API_BASE + '/1.0/persons', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, role, kuerzel, type })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    msgDiv.textContent = 'Fehler: ' + data.message;
+    msgDiv.className = 'error';
+    return;
+  }
+
+  msgDiv.textContent = 'Erstellt: ' + data.did;
+  msgDiv.className = 'success';
+  document.getElementById('nameInput').value = '';
+  document.getElementById('roleInput').value = '';
+  document.getElementById('kuerzelInput').value = '';
+  loadPersons();
+});
+
+loadStatus();
+loadPersons();
+</script>
+
+</body>
+</html>
