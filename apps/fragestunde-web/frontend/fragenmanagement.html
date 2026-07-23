@@ -4,15 +4,14 @@
 <meta charset="utf-8">
 <title>Fragenmanagement · RecordWeb PoC</title>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 780px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
   h1 { font-size: 1.4rem; }
   .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
   .test-account { display: inline-block; margin: 4px; padding: 8px 12px; border: 1px solid #999; border-radius: 6px; cursor: pointer; background: #f5f5f7; }
   .test-account:hover { background: #e6e6ea; }
   textarea, select { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
-  button { padding: 7px 14px; cursor: pointer; margin: 3px 4px 3px 0; border: 1px solid #ccc; border-radius: 5px; background: #fff; }
-  button:hover { background: #f0f0f2; }
-  .record { border-left: 4px solid #999; padding: 10px 12px; margin: 10px 0; background: #fafafa; border-radius: 4px; }
+  button { padding: 8px 16px; cursor: pointer; margin-right: 6px; }
+  .record { border-left: 4px solid #999; padding: 10px; margin: 10px 0; background: #fafafa; border-radius: 4px; }
   .record.draft { border-color: #e0a800; }
   .record.finalized { border-color: #2b8a3e; }
   .did { font-size: 0.75rem; color: #666; word-break: break-all; }
@@ -23,8 +22,6 @@
   #logoutBtn { float: right; }
   .hidden { display: none; }
   pre { white-space: pre-wrap; font-size: 0.8rem; background: #f0f0f2; padding: 8px; border-radius: 4px; }
-  ul { font-size: 0.85rem; padding-left: 18px; }
-  a.pdf-link { color: #2b8a3e; text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -57,15 +54,16 @@
     <div id="recordsList"></div>
   </div>
 
-  <div class="card hidden" id="notificationsCard">
+  <div class="card" id="notificationsCard" style="display:none;">
     <h2>LDN-Notifications (Admin)</h2>
     <div id="notificationsList"></div>
   </div>
 
-  <div class="card hidden" id="logsCard">
+  <div class="card" id="logsCard" style="display:none;">
     <h2>Server-Logs (Admin)</h2>
     <div id="logsList"></div>
   </div>
+
 </div>
 
 <script>
@@ -88,6 +86,7 @@ const cancelEditBtn = document.getElementById("cancelEditBtn");
 const saveDraftBtn = document.getElementById("saveDraftBtn");
 
 let editingDid = null;
+
 let lastLoadedRecords = [];
 
 function getCurrentUser() {
@@ -123,30 +122,6 @@ function metaRow(label, value) {
   return `<tr><td>${label}</td><td>${value ?? "–"}</td></tr>`;
 }
 
-function renderRepresentations(r) {
-  if (!r.payload_representations) return "";
-  let reps;
-  try {
-    reps = typeof r.payload_representations === "string"
-      ? JSON.parse(r.payload_representations)
-      : r.payload_representations;
-  } catch { return ""; }
-
-  return `
-    <p><strong>Repräsentationen:</strong></p>
-    <ul>
-      ${reps.map(rep => `
-        <li>${rep.role} (${rep.format}) — Hash: ${rep.hash}
-          ${rep.format === "application/pdf" && r.payload && r.payload._pdfBase64 ? `
-            <br><a class="pdf-link" download="frage.pdf"
-              href="data:application/pdf;base64,${r.payload._pdfBase64}">PDF herunterladen</a>
-          ` : ""}
-        </li>
-      `).join("")}
-    </ul>
-  `;
-}
-
 function renderRecords(records) {
   lastLoadedRecords = records;
   recordsList.innerHTML = "";
@@ -154,7 +129,6 @@ function renderRecords(records) {
     recordsList.innerHTML = "<p>Noch keine Fragen erfasst.</p>";
     return;
   }
-
   records.forEach(r => {
     const div = document.createElement("div");
     div.className = "record " + r.state;
@@ -162,19 +136,12 @@ function renderRecords(records) {
       <strong>${r.payload.session}</strong> — <em>${r.state}</em><br>
       ${r.payload.fragetext}<br>
       <span class="did">${r.did}</span>
-      ${r.snapshot_hash ? `<br><span class="did">Snapshot: ${r.snapshot_hash}</span>` : ""}
+      ${r.snapshot_hash ? `<br><span class="did">Hash: ${r.snapshot_hash}</span>` : ""}
       <br>
-      ${r.state === "draft" ? `
-        <button class="editBtn" data-did="${r.did}">Bearbeiten</button>
+      ${r.state === "draft" ? `<button class="editBtn" data-did="${r.did}">Bearbeiten</button>
         <button class="finalizeBtn" data-did="${r.did}">Finalisieren</button>
-        <button class="finalizePdfBtn" data-did="${r.did}">Als PDF finalisieren</button>
-      ` : ""}
-      ${r.state === "finalized" ? `
-        <button class="newVersionBtn" data-did="${r.did}">Neue Version starten</button>
-      ` : ""}
-      ${r.state === "finalized" ? `
-        <button class="solidLinkBtn" data-did="${r.did}">In Solid Pod verlinken</button>
-      ` : ""}
+        <button class="finalizePdfBtn" data-did="${r.did}">Als PDF finalisieren</button>` : ""}
+      ${r.state === "finalized" ? `<button class="newVersionBtn" data-did="${r.did}">Neue Version starten</button>` : ""}
       <button class="historyBtn" data-did="${r.did}">Historie anzeigen</button>
       <details>
         <summary>Alle Metadaten anzeigen</summary>
@@ -190,33 +157,42 @@ function renderRecords(records) {
           ${metaRow("payloadHash", r.payload_hash)}
           ${metaRow("payloadFormat", r.payload_format)}
           ${metaRow("snapshotHash", r.snapshot_hash)}
-          ${metaRow("correctionReason", r.correction_reason)}
           ${metaRow("signature", r.signature)}
+          ${metaRow("correctionReason", r.correction_reason)}
         </table>
-        ${renderRepresentations(r)}
+        ${r.payload_representations ? `
+          <p><strong>Repräsentationen:</strong></p>
+          <ul>
+            ${(typeof r.payload_representations === "string" ? JSON.parse(r.payload_representations) : r.payload_representations).map(rep => `
+              <li>${rep.role} (${rep.format}) — Hash: ${rep.hash}
+                ${rep.format === "application/pdf" && r.payload && r.payload._pdfBase64 ? `
+                  <br><a download="frage.pdf" href="data:application/pdf;base64,${r.payload._pdfBase64}">PDF herunterladen</a>
+                ` : ""}
+              </li>
+            `).join("")}
+          </ul>
+        ` : ""}
         <p><strong>Payload:</strong></p>
         <pre>${JSON.stringify(r.payload, null, 2)}</pre>
+        ${r.state === "finalized" ? `
+          <button class="solidLinkBtn" data-did="${r.did}">In Solid Pod verlinken</button>
+          <div class="solidLinksList" data-did="${r.did}"></div>
+        ` : ""}
       </details>
     `;
     recordsList.appendChild(div);
   });
+
+  document.querySelectorAll(".finalizeBtn").forEach(btn => {
+    btn.addEventListener("click", () => finalizeRecord(btn.dataset.did));
+  });
+  document.querySelectorAll(".editBtn").forEach(btn => {
+    btn.addEventListener("click", () => startEdit(btn.dataset.did, records));
+  });
 }
 
-// Event Delegation — robust gegenüber Render-Timing
-recordsList.addEventListener("click", (e) => {
-  const did = e.target.dataset.did;
-  if (!did) return;
-
-  if (e.target.classList.contains("finalizeBtn")) finalizeRecord(did);
-  if (e.target.classList.contains("finalizePdfBtn")) finalizeAsPdf(did);
-  if (e.target.classList.contains("newVersionBtn")) startNewVersion(did);
-  if (e.target.classList.contains("editBtn")) startEdit(did);
-  if (e.target.classList.contains("solidLinkBtn")) linkToSolid(did);
-  if (e.target.classList.contains("historyBtn")) showHistory(did);
-});
-
-function startEdit(did) {
-  const record = lastLoadedRecords.find(r => r.did === did);
+function startEdit(did, records) {
+  const record = records.find(r => r.did === did);
   if (!record) return;
   editingDid = did;
   document.getElementById("sessionSelect").value = record.payload.session;
@@ -239,7 +215,7 @@ cancelEditBtn.addEventListener("click", cancelEdit);
 
 async function finalizeRecord(did) {
   const ok = confirm(
-    "Dieser Vorgang finalisiert Ihre Frage unwiderruflich. Der Record erhält einen kryptographischen Snapshot-Hash."
+    "Dieser Vorgang finalisiert Ihre Frage unwiderruflich. Der Record erhält eine permanente DID und einen kryptographischen Snapshot-Hash."
   );
   if (!ok) return;
   await fetch(`${API_BASE}/${encodeURIComponent(did)}/finalize`, { method: "PUT" });
@@ -277,35 +253,6 @@ async function showHistory(did) {
     `${i + 1}. [${s.state}]\n   snapshotHash: ${s.snapshot_hash}\n   parents: ${JSON.stringify(s.parents)}\n   created: ${s.created}`
   ).join("\n\n");
   alert(text || "Keine Historie gefunden.");
-}
-
-async function linkToSolid(did) {
-  const podUrl = prompt(
-    "Solid-Pod-URL eingeben (Simulation):",
-    "https://bernasconi.solidpod.ch/fragestunde/"
-  );
-  if (!podUrl) return;
-
-  const user = getCurrentUser();
-  try {
-    const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/solid-link`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ podUrl, linkedBy: user.did })
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      alert("Fehler: " + err.error);
-      return;
-    }
-
-    const link = await res.json();
-    alert(`Pointer im Solid Pod erstellt:\n${link.podUrl}\nHash: ${link.snapshotHash}`);
-    loadRecords();
-  } catch (err) {
-    alert("Netzwerkfehler: " + err.message);
-  }
 }
 
 saveDraftBtn.addEventListener("click", async () => {
@@ -376,38 +323,94 @@ async function loadNotifications() {
   });
 }
 
+document.querySelectorAll(".solidLinkBtn").forEach(btn => {
+  btn.addEventListener("click", () => linkToSolid(btn.dataset.did));
+});
+
+async function linkToSolid(did) {
+  const podUrl = window.prompt(
+    "Solid-Pod-URL eingeben (Simulation):",
+    "https://bernasconi.solidpod.ch/fragestunde/"
+  );
+  if (podUrl === null || podUrl.trim() === "") return;
+
+  const user = getCurrentUser();
+  try {
+    const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/solid-link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podUrl, linkedBy: user.did })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      alert("Fehler: " + err.error);
+      return;
+    }
+
+    const link = await res.json();
+    alert(`Pointer im Solid Pod erstellt:\n${link.podUrl}\nHash: ${link.snapshotHash}`);
+    loadRecords();
+  } catch (err) {
+    alert("Netzwerkfehler: " + err.message);
+  }
+}
+
+recordsList.addEventListener("click", (e) => {
+  if (e.target.classList.contains("finalizeBtn")) {
+    finalizeRecord(e.target.dataset.did);
+  }
+  if (e.target.classList.contains("finalizePdfBtn")) {
+    finalizeAsPdf(e.target.dataset.did);
+  }
+  if (e.target.classList.contains("newVersionBtn")) {
+    startNewVersion(e.target.dataset.did);
+  }
+  if (e.target.classList.contains("historyBtn")) {
+    showHistory(e.target.dataset.did);
+  }
+  if (e.target.classList.contains("editBtn")) {
+    startEdit(e.target.dataset.did, lastLoadedRecords);
+  }
+  if (e.target.classList.contains("solidLinkBtn")) {
+    linkToSolid(e.target.dataset.did);
+  }
+});
+
 async function loadLogs() {
   const res = await fetch("/api/logs");
   const logs = await res.json();
   const list = document.getElementById("logsList");
   list.innerHTML = logs.map(l =>
     `<div class="did">[${l.created}] ${l.message}</div>`
-  ).join("") || "<p>Keine Logs vorhanden.</p>";
+  ).join("");
 }
 
 function renderApp() {
   const user = getCurrentUser();
-  const notifCard = document.getElementById("notificationsCard");
-  const logsCard = document.getElementById("logsCard");
-
   if (user) {
     loginView.classList.add("hidden");
     appView.classList.remove("hidden");
     currentUserLabel.textContent = user.label;
     loadRecords();
 
+    const notifCard = document.getElementById("notificationsCard");
     if (user === USERS.admin) {
-      notifCard.classList.remove("hidden");
-      logsCard.classList.remove("hidden");
+      notifCard.style.display = "block";
       loadNotifications();
-      loadLogs();
     } else {
-      notifCard.classList.add("hidden");
-      logsCard.classList.add("hidden");
+      notifCard.style.display = "none";
     }
   } else {
     loginView.classList.remove("hidden");
     appView.classList.add("hidden");
+  }
+  const logsCard = document.getElementById("logsCard");
+  if (user === USERS.admin) {
+    logsCard.style.display = "block";
+    loadLogs();
+  } else {
+    logsCard.style.display = "none";
   }
 }
 
