@@ -10,6 +10,11 @@ Alle Pfade sind relativ zu `https://vps.recordweb.dev`.
 - **Namespace:** `did:rwp:a3f9e21c`
 - **Record-Typ:** `did:rwp:a3f9e21c:schema:fragestunde-frage`
 
+> Hinweis zur Pfad-Struktur
+>
+>`/fragenmanagement/api/*` bündelt alle internen Anwendungs-Endpunkte (Records, Notifications, Logs).  
+>`/fragenmanagement/did/*` ist bewusst getrennt davon, da DID-Auflösung eine system­übergreifende Interoperabilitäts-Schnittstelle ist (analog zu W3C DID Core), nicht Teil der internen App-API.
+
 ---
 
 ## Records

@@ -4,10 +4,14 @@ import pool from "./db.js";
 import { initSchema } from "./db.js";
 import recordsRouter from "./routes/records.js";
 import didRouter from "./routes/did.js";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./swagger.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use("/fragenmanagement/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 

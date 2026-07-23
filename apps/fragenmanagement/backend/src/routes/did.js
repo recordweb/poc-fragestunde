@@ -4,6 +4,24 @@ import pool from "../db.js";
 const router = express.Router();
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
 
+/**
+ * @openapi
+ * /did/{did}:
+ *   get:
+ *     tags: [DID]
+ *     summary: DID auflösen
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: DID-Dokument
+ *       404:
+ *         description: DID unbekannt
+ */
 router.get(/^\/(.+)$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
 

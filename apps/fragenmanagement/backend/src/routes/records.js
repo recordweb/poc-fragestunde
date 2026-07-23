@@ -67,7 +67,16 @@ async function finalizeCommon(did, finalizedSnapshot) {
 }
 
 // ---------- Interne Liste (zeigt auch Drafts) ----------
-
+/**
+ * @openapi
+ * /api/records:
+ *   get:
+ *     tags: [Records]
+ *     summary: Alle Records auflisten (inkl. Drafts)
+ *     responses:
+ *       200:
+ *         description: Liste aller Records
+ */
 router.get("/", async (req, res) => {
   const { rows } = await pool.query(`
     SELECT r.did, r.record_type, r.owner, r.created AS record_created, s.*
@@ -78,7 +87,42 @@ router.get("/", async (req, res) => {
 });
 
 // ---------- Draft anlegen ----------
-
+/**
+ * @openapi
+ * /api/records:
+ *   post:
+ *     tags: [Records]
+ *     summary: Draft anlegen
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               recordType:
+ *                 type: string
+ *                 example: "did:rwp:a3f9e21c:schema:fragestunde-frage"
+ *               owner:
+ *                 type: string
+ *                 example: "did:rwp:f2c81e05:self"
+ *               payload:
+ *                 type: object
+ *                 properties:
+ *                   fragetext:
+ *                     type: string
+ *                   session:
+ *                     type: string
+ *                   parlamentarier_did:
+ *                     type: string
+ *                   eingereicht_am:
+ *                     type: string
+ *     responses:
+ *       201:
+ *         description: Draft erstellt
+ *       422:
+ *         description: Payload ungültig
+ */
 router.post("/", async (req, res) => {
   const { recordType, owner, payload } = req.body;
   if (recordType !== RECORD_TYPE_FRAGE) {
@@ -106,7 +150,48 @@ router.post("/", async (req, res) => {
 });
 
 // ---------- Draft bearbeiten (in-place, kein neuer Knoten) ----------
-
+/**
+ * @openapi
+ * /api/records/{did}:
+ *   put:
+ *     tags: [Records]
+ *     summary: Draft bearbeiten (in-place, kein neuer Snapshot-Knoten)
+ *     description: Nur möglich, solange der Record den Status "draft" hat. Aktualisiert den bestehenden Snapshot direkt, ohne neuen Versionsknoten zu erzeugen.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: "did:rwp:a3f9e21c:records:56a2d6a6-cb2e-41b3-bee3-f443289d977f"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               payload:
+ *                 type: object
+ *                 properties:
+ *                   fragetext:
+ *                     type: string
+ *                   session:
+ *                     type: string
+ *                   parlamentarier_did:
+ *                     type: string
+ *                   eingereicht_am:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: Draft erfolgreich aktualisiert
+ *       404:
+ *         description: Record nicht gefunden
+ *       409:
+ *         description: Nur Drafts können bearbeitet werden
+ *       422:
+ *         description: Payload ungültig
+ */
 router.put(/^\/(.+)$/, async (req, res, next) => {
   const did = decodeURIComponent(req.params[0]);
   if (["/finalize", "/finalize-pdf", "/new-version"].some(s => did.endsWith(s))) {
@@ -132,7 +217,24 @@ router.put(/^\/(.+)$/, async (req, res, next) => {
 });
 
 // ---------- Finalisieren (JSON) ----------
-
+/**
+ * @openapi
+ * /api/records/{did}/finalize:
+ *   put:
+ *     tags: [Records]
+ *     summary: Draft finalisieren (JSON)
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Record finalisiert
+ *       409:
+ *         description: Nur Drafts können finalisiert werden
+ */
 router.put(/^\/(.+)\/finalize$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
   const record = await getFullRecord(did);
@@ -153,7 +255,27 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
 });
 
 // ---------- Finalisieren als PDF (Multi-Representation) ----------
-
+/**
+ * @openapi
+ * /api/records/{did}/finalize-pdf:
+ *   put:
+ *     tags: [Records]
+ *     summary: Draft finalisieren mit PDF-Repräsentation
+ *     description: Erzeugt zusätzlich zur JSON-Quelle eine PDF-Repräsentation (Multi-Representation). Die JSON-Quelle bleibt als Snapshot erhalten, das PDF wird base64-kodiert im Payload mitgeführt.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Record finalisiert, inkl. PDF-Repräsentation
+ *       404:
+ *         description: Record nicht gefunden
+ *       409:
+ *         description: Nur Drafts können finalisiert werden
+ */
 router.put(/^\/(.+)\/finalize-pdf$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
   const record = await getFullRecord(did);
@@ -186,7 +308,37 @@ router.put(/^\/(.+)\/finalize-pdf$/, async (req, res) => {
 });
 
 // ---------- Neue Version starten (nur ab finalisiertem Snapshot) ----------
-
+/**
+ * @openapi
+ * /api/records/{did}/new-version:
+ *   post:
+ *     tags: [Records]
+ *     summary: Neue Version eines finalisierten Records starten
+ *     description: Nur möglich ab Status "finalized". Erzeugt einen neuen Draft-Snapshot mit Parent-Referenz auf den vorherigen finalisierten Snapshot. Optional mit Korrekturbegründung.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               correctionReason:
+ *                 type: string
+ *                 example: "Tippfehler korrigiert"
+ *     responses:
+ *       201:
+ *         description: Neuer Draft-Snapshot erstellt
+ *       404:
+ *         description: Record nicht gefunden
+ *       409:
+ *         description: Neue Version nur ab finalisiertem Record möglich
+ */
 router.post(/^\/(.+)\/new-version$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
   const record = await getFullRecord(did);
@@ -212,7 +364,23 @@ router.post(/^\/(.+)\/new-version$/, async (req, res) => {
 });
 
 // ---------- Vollständige Historie eines Records ----------
-
+/**
+ * @openapi
+ * /api/records/{did}/history:
+ *   get:
+ *     tags: [Records]
+ *     summary: Vollständige Snapshot-Historie eines Records abrufen
+ *     description: Liefert den kompletten Version-Graph (alle Snapshots) eines Records, chronologisch aufsteigend sortiert.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Liste aller Snapshots
+ */
 router.get(/^\/(.+)\/history$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
   const { rows } = await pool.query(
@@ -223,7 +391,40 @@ router.get(/^\/(.+)\/history$/, async (req, res) => {
 });
 
 // ---------- Solid-Pod-Link ----------
-
+/**
+ * @openapi
+ * /api/records/{did}/solid-link:
+ *   post:
+ *     tags: [Solid]
+ *     summary: Record als Pointer in ein Solid Pod verlinken
+ *     description: Nur möglich bei finalisierten Records. Erstellt einen kryptographischen Pointer (Hash + URL) im Solid Pod — keine Inhaltskopie.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               podUrl:
+ *                 type: string
+ *                 example: "https://bernasconi.solidpod.ch/fragestunde/"
+ *               linkedBy:
+ *                 type: string
+ *                 example: "did:rwp:f2c81e05:self"
+ *     responses:
+ *       201:
+ *         description: Solid-Pod-Link erstellt
+ *       404:
+ *         description: Record nicht gefunden
+ *       409:
+ *         description: Nur finalisierte Records können verlinkt werden
+ */
 router.post("/:did(*)/solid-link", async (req, res) => {
   const did = req.params.did;
   const { podUrl, linkedBy } = req.body;
@@ -254,6 +455,22 @@ router.post("/:did(*)/solid-link", async (req, res) => {
   });
 });
 
+/**
+ * @openapi
+ * /api/records/{did}/solid-links:
+ *   get:
+ *     tags: [Solid]
+ *     summary: Alle Solid-Pod-Links eines Records abrufen
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Liste aller Solid-Pod-Links, absteigend nach Erstellungsdatum
+ */
 router.get("/:did(*)/solid-links", async (req, res) => {
   const { rows } = await pool.query(
     "SELECT * FROM solid_links WHERE record_did = $1 ORDER BY linked_at DESC",
@@ -264,7 +481,27 @@ router.get("/:did(*)/solid-links", async (req, res) => {
 
 // ---------- Extern lesbar — NUR finalisierte Records ----------
 // Muss NACH allen spezifischen Routen stehen (Pfad-Überlappung)
-
+/**
+ * @openapi
+ * /api/records/{did}:
+ *   get:
+ *     tags: [Records]
+ *     summary: Einzelnen Record lesen (nur wenn finalisiert)
+ *     description: Extern nur sichtbar, wenn der Record den Status "finalized" hat. Drafts liefern 403, da sie nicht öffentlich lesbar sein sollen.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Vollständiger, finalisierter Record
+ *       403:
+ *         description: Record ist nicht finalisiert und daher nicht extern sichtbar
+ *       404:
+ *         description: Record nicht gefunden
+ */
 router.get(/^\/(.+)$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
   const record = await getFullRecord(did);
