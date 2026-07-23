@@ -11,17 +11,17 @@ app.use(express.json());
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 
-app.get("/notifications", async (req, res) => {
+app.get("/fragenmanagement/api/notifications", async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM ldn_notifications ORDER BY published DESC");
   res.json(rows);
 });
 
-app.get("/logs", async (req, res) => {
+app.get("/fragenmanagement/api/logs", async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM server_logs ORDER BY created DESC LIMIT 100");
   res.json(rows);
 });
 
-app.use("/fragenmanagement/records", recordsRouter);
+app.use("/fragenmanagement/api/records", recordsRouter);
 
 app.use("/fragenmanagement/did", didRouter);
 

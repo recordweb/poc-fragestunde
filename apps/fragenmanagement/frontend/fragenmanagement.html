@@ -295,7 +295,7 @@ saveDraftBtn.addEventListener("click", async () => {
 });
 
 async function loadNotifications() {
-  const res = await fetch("/api/notifications");
+  const res = await fetch("/fragenmanagement/api/notifications");
   const notifications = await res.json();
   const list = document.getElementById("notificationsList");
   list.innerHTML = "";
@@ -401,7 +401,7 @@ recordsList.addEventListener("toggle", async (e) => {
 }, true);
 
 async function loadLogs() {
-  const res = await fetch("/api/logs");
+  const res = await fetch("/fragenmanagement/api/logs");
   const logs = await res.json();
   const list = document.getElementById("logsList");
   list.innerHTML = logs.map(l =>
