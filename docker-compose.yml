@@ -31,6 +31,25 @@ services:
     networks:
       - poc_network
 
+  antwort-api:
+    build:
+      context: .
+      dockerfile: apps/antwortmanagement/backend/Dockerfile
+    container_name: poc-antwort-api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PGHOST: db
+      PGUSER: poc_user
+      PGPASSWORD: poc_recordweb
+      PGDATABASE: poc_db
+      PUBLIC_BASE_URL: https://vps.recordweb.dev
+    volumes:
+      - ./schemas:/app/schemas:ro
+    networks:
+      - poc_network
+
   resolver-parlament:
     build:
       context: ./apps/resolver
