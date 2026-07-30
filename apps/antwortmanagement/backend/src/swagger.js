@@ -1,0 +1,22 @@
+import swaggerJsdoc from "swagger-jsdoc";
+
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Antwortmanagement API",
+      version: "1.0.0",
+      description: "RecordWeb PoC — Antwortmanagement der Bundeskanzlei. Antwort-Records und DID-Resolver."
+    },
+    servers: [
+      { url: "https://vps.recordweb.dev/antwortmanagement", description: "Produktion (PoC)" }
+    ],
+    tags: [
+      { name: "Records", description: "Fragestunde-Antwort Records" },
+      { name: "DID", description: "DID-Resolver" }
+    ]
+  },
+  apis: ["./src/routes/*.js"]
+};
+
+export const swaggerSpec = swaggerJsdoc(options);

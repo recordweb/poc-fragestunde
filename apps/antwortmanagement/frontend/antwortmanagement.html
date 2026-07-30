@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Antwortmanagement · RecordWeb PoC</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; color: #1a1a2e; }
+  h1 { font-size: 1.4rem; }
+  .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .test-account { display: inline-block; margin: 4px; padding: 8px 12px; border: 1px solid #999; border-radius: 6px; cursor: pointer; background: #f5f5f7; }
+  .test-account:hover { background: #e6e6ea; }
+  textarea, select { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
+  button { padding: 8px 16px; cursor: pointer; margin-right: 6px; }
+  .record { border-left: 4px solid #999; padding: 10px; margin: 10px 0; background: #fafafa; border-radius: 4px; }
+  .record.draft { border-color: #e0a800; }
+  .record.finalized { border-color: #2b8a3e; }
+  .did { font-size: 0.75rem; color: #666; word-break: break-all; }
+  .meta-table { width: 100%; font-size: 0.85rem; margin-top: 8px; border-collapse: collapse; }
+  .meta-table td { padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: top; word-break: break-all; }
+  .meta-table td:first-child { font-weight: 600; width: 160px; color: #444; }
+  summary { cursor: pointer; font-size: 0.85rem; color: #444; margin-top: 6px; }
+  #logoutBtn { float: right; }
+  .hidden { display: none; }
+  pre { white-space: pre-wrap; font-size: 0.8rem; background: #f0f0f2; padding: 8px; border-radius: 4px; }
+  .historyBox { margin-top: 8px; padding: 8px 10px; background: #f0f0f2; border-radius: 4px; font-size: 0.8rem; }
+  .historyNode { padding: 6px 0; border-bottom: 1px solid #ddd; word-break: break-all; }
+  .historyNode:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="card">
+  <h1>Bundeskanzlei · RecordWeb PoC</h1>
+  <p>Test-Accounts (klicken zum Einloggen):</p>
+  <div id="testAccountsList">Lädt Personen vom Resolver…</div>
+</div>
+
+<div id="appView" class="hidden">
+  <button id="logoutBtn">Logout</button>
+  <h1>Antwortmanagement — <span id="currentUserLabel"></span></h1>
+
+  <div class="card">
+    <h2 id="formTitle">Neue Antwort</h2>
+    <label for="frageSelect">Frage aus dem Fragenmanagement</label>
+    <select id="frageSelect">
+      <option value="">Lädt finalisierte Fragen…</option>
+    </select>
+    <div id="frageVorschau" class="did"></div>
+    <textarea id="antworttext" maxlength="500" rows="4" placeholder="Ihre Antwort (max. 500 Zeichen)"></textarea>
+    <button id="saveDraftBtn">Als Draft speichern</button>
+    <button id="cancelEditBtn" class="hidden">Abbrechen</button>
+  </div>
+
+  <div class="card">
+    <h2>Meine Antworten</h2>
+    <div id="recordsList"></div>
+  </div>
+
+  <div class="card" id="logsCard" style="display:none;">
+    <h2>Server-Logs (Admin)</h2>
+    <div id="logsList"></div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE = "/antwortmanagement/api/records";
+
+const RESOLVER_BASE = "/resolver/bk";
+const FRAGEN_API_BASE = "/fragenmanagement/api/records";
+
+const RECORD_TYPE_ANTWORT = "did:rwp:b7d4c810:schema:fragestunde-antwort";
+
+const loginView = document.getElementById("loginView");
+const appView = document.getElementById("appView");
+const currentUserLabel = document.getElementById("currentUserLabel");
+const recordsList = document.getElementById("recordsList");
+const formTitle = document.getElementById("formTitle");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+const saveDraftBtn = document.getElementById("saveDraftBtn");
+const frageSelect = document.getElementById("frageSelect");
+const frageVorschau = document.getElementById("frageVorschau");
+
+let editingDid = null;
+
+let lastLoadedRecords = [];
+let finalisierteFragen = [];
+
+function getCurrentUser() {
+  const raw = sessionStorage.getItem("currentUser");
+  return raw ? JSON.parse(raw) : null;
+}
+
+async function login(kuerzel) {
+  const res = await fetch(`${RESOLVER_BASE}/1.0/login/${encodeURIComponent(kuerzel)}`);
+  if (!res.ok) {
+    alert("Login fehlgeschlagen: Person nicht gefunden.");
+    return;
+  }
+  const person = await res.json();
+  sessionStorage.setItem("currentUser", JSON.stringify({
+    did: person.did,
+    label: `${person.name} (${person.role})`,
+    kuerzel: person.kuerzel,
+    isAdmin: person.kuerzel === "admin"
+  }));
+  renderApp();
+}
+
+function logout() {
+  sessionStorage.removeItem("currentUser");
+  renderApp();
+}
+
+async function loadPersonsFromResolver() {
+  const res = await fetch(`${RESOLVER_BASE}/1.0/persons`);
+  const persons = await res.json();
+  const list = document.getElementById("testAccountsList");
+  list.innerHTML = "";
+  persons.forEach(p => {
+    const div = document.createElement("div");
+    div.className = "test-account";
+    div.dataset.kuerzel = p.kuerzel;
+    div.textContent = `${p.kuerzel} — ${p.name} (${p.role})`;
+    list.appendChild(div);
+  });
+  document.querySelectorAll(".test-account").forEach(el => {
+    el.addEventListener("click", () => login(el.dataset.kuerzel));
+  });
+}
+
+document.getElementById("logoutBtn").addEventListener("click", logout);
+
+// Die Frage wird via DID aus dem Fragenmanagement gelesen — keine lokale Kopie.
+// Übernommen werden nur die Referenzfelder frage_did und frage_snapshot_hash.
+async function loadFinalisierteFragen() {
+  try {
+    const res = await fetch(FRAGEN_API_BASE);
+    const all = await res.json();
+    finalisierteFragen = all.filter(f => f.state === "finalized");
+  } catch (err) {
+    finalisierteFragen = [];
+  }
+
+  frageSelect.innerHTML = "";
+  if (!finalisierteFragen.length) {
+    frageSelect.innerHTML = '<option value="">Keine finalisierten Fragen verfügbar</option>';
+    return;
+  }
+  frageSelect.appendChild(new Option("— Frage wählen —", ""));
+  finalisierteFragen.forEach(f => {
+    const kurz = f.payload.fragetext.length > 70
+      ? f.payload.fragetext.slice(0, 70) + "…"
+      : f.payload.fragetext;
+    frageSelect.appendChild(new Option(`${f.payload.session} — ${kurz}`, f.did));
+  });
+}
+
+function renderFrageVorschau() {
+  const frage = finalisierteFragen.find(f => f.did === frageSelect.value);
+  frageVorschau.innerHTML = frage
+    ? `Frage-DID: ${frage.did}<br>Snapshot-Hash: ${frage.snapshot_hash}`
+    : "";
+}
+
+frageSelect.addEventListener("change", renderFrageVorschau);
+
+async function loadRecords() {
+  const user = getCurrentUser();
+  if (!user) return;
+  const res = await fetch(API_BASE);
+  const all = await res.json();
+  const mine = user.isAdmin ? all : all.filter(r => r.owner === user.did);
+  renderRecords(mine);
+}
+
+function metaRow(label, value) {
+  return `<tr><td>${label}</td><td>${value ?? "–"}</td></tr>`;
+}
+
+function renderRecords(records) {
+  lastLoadedRecords = records;
+  recordsList.innerHTML = "";
+  if (!records.length) {
+    recordsList.innerHTML = "<p>Noch keine Antworten erfasst.</p>";
+    return;
+  }
+  records.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "record " + r.state;
+    div.innerHTML = `
+      <strong>Antwort</strong> — <em>${r.state}</em><br>
+      ${r.payload.antworttext}<br>
+      <span class="did">${r.did}</span><br>
+      <span class="did">Frage: ${r.payload.frage_did}</span>
+      ${r.snapshot_hash ? `<br><span class="did">Hash: ${r.snapshot_hash}</span>` : ""}
+      <br>
+      ${r.state === "draft" ? `<button class="editBtn" data-did="${r.did}">Bearbeiten</button>
+        <button class="finalizeBtn" data-did="${r.did}">Finalisieren</button>` : ""}
+      ${r.state === "finalized" ? `<button class="newVersionBtn" data-did="${r.did}">Neue Version starten</button>` : ""}
+      <details>
+        <summary>Alle Metadaten anzeigen</summary>
+        <table class="meta-table">
+          ${metaRow("did", r.did)}
+          ${metaRow("recordType", r.record_type)}
+          ${metaRow("schemaVersion", r.schema_version)}
+          ${metaRow("state", r.state)}
+          ${metaRow("created", r.created)}
+          ${metaRow("finalized", r.finalized)}
+          ${metaRow("owner", r.owner)}
+          ${metaRow("parents", JSON.stringify(r.parents))}
+          ${metaRow("payloadHash", r.payload_hash)}
+          ${metaRow("payloadFormat", r.payload_format)}
+          ${metaRow("snapshotHash", r.snapshot_hash)}
+          ${metaRow("signature", r.signature)}
+          ${metaRow("correctionReason", r.correction_reason)}
+        </table>
+        <p><strong>Payload:</strong></p>
+        <pre>${JSON.stringify(r.payload, null, 2)}</pre>
+      </details>
+      <details class="historyDetails" data-did="${r.did}">
+        <summary>Historie anzeigen</summary>
+        <div class="historyBox">Lädt…</div>
+      </details>
+    `;
+    recordsList.appendChild(div);
+  });
+}
+
+function startEdit(did, records) {
+  const record = records.find(r => r.did === did);
+  if (!record) return;
+  editingDid = did;
+  frageSelect.value = record.payload.frage_did;
+  renderFrageVorschau();
+  document.getElementById("antworttext").value = record.payload.antworttext;
+  formTitle.textContent = "Antwort bearbeiten";
+  saveDraftBtn.textContent = "Änderungen speichern";
+  cancelEditBtn.classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  editingDid = null;
+  document.getElementById("antworttext").value = "";
+  frageSelect.value = "";
+  renderFrageVorschau();
+  formTitle.textContent = "Neue Antwort";
+  saveDraftBtn.textContent = "Als Draft speichern";
+  cancelEditBtn.classList.add("hidden");
+}
+
+cancelEditBtn.addEventListener("click", cancelEdit);
+
+async function finalizeRecord(did) {
+  const ok = confirm(
+    "Dieser Vorgang finalisiert Ihre Antwort unwiderruflich. Der Record erhält eine permanente DID und einen kryptographischen Snapshot-Hash."
+  );
+  if (!ok) return;
+  await fetch(`${API_BASE}/${encodeURIComponent(did)}/finalize`, { method: "PUT" });
+  loadRecords();
+}
+
+async function startNewVersion(did) {
+  const reason = prompt("Grund für die neue Version (optional):", "");
+  const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/new-version`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ correctionReason: reason || null })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    alert("Fehler: " + err.error);
+    return;
+  }
+  loadRecords();
+}
+
+saveDraftBtn.addEventListener("click", async () => {
+  const user = getCurrentUser();
+  const antworttext = document.getElementById("antworttext").value.trim();
+  const frage = finalisierteFragen.find(f => f.did === frageSelect.value);
+
+  if (!frage) {
+    alert("Bitte eine finalisierte Frage auswählen.");
+    return;
+  }
+  if (!antworttext) {
+    alert("Bitte einen Antworttext eingeben.");
+    return;
+  }
+
+  const payload = {
+    antworttext,
+    frage_did: frage.did,
+    frage_snapshot_hash: frage.snapshot_hash,
+    bundesrat_did: user.did,
+    beantwortet_am: new Date().toISOString()
+  };
+
+  let res;
+  if (editingDid) {
+    res = await fetch(`${API_BASE}/${encodeURIComponent(editingDid)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payload })
+    });
+  } else {
+    res = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordType: RECORD_TYPE_ANTWORT, owner: user.did, payload })
+    });
+  }
+
+  if (!res.ok) {
+    const err = await res.json();
+    alert("Fehler: " + JSON.stringify(err.details || err.error));
+    return;
+  }
+
+  cancelEdit();
+  loadRecords();
+});
+
+recordsList.addEventListener("click", (e) => {
+  if (e.target.classList.contains("finalizeBtn")) {
+    finalizeRecord(e.target.dataset.did);
+  }
+  if (e.target.classList.contains("newVersionBtn")) {
+    startNewVersion(e.target.dataset.did);
+  }
+  if (e.target.classList.contains("editBtn")) {
+    startEdit(e.target.dataset.did, lastLoadedRecords);
+  }
+});
+
+recordsList.addEventListener("toggle", async (e) => {
+  if (!e.target.classList.contains("historyDetails")) return;
+  if (!e.target.open) return;
+
+  const did = e.target.dataset.did;
+  const box = e.target.querySelector(".historyBox");
+  box.textContent = "Lädt…";
+
+  const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/history`);
+  const history = await res.json();
+
+  box.innerHTML = `
+    <p><strong>Version Graph (${history.length} Snapshot${history.length !== 1 ? "s" : ""}):</strong></p>
+    ${history.map((s, i) => `
+      <div class="historyNode">
+        <strong>${i + 1}. [${s.state}]</strong><br>
+        snapshotHash: ${s.snapshot_hash}<br>
+        parents: ${JSON.stringify(s.parents)}<br>
+        created: ${s.created}
+        ${s.finalized ? `<br>finalized: ${s.finalized}` : ""}
+        ${s.correction_reason ? `<br>correctionReason: ${s.correction_reason}` : ""}
+      </div>
+    `).join("")}
+  `;
+}, true);
+
+async function loadLogs() {
+  const res = await fetch("/antwortmanagement/api/logs");
+  const logs = await res.json();
+  const list = document.getElementById("logsList");
+  list.innerHTML = logs.map(l =>
+    `<div class="did">[${l.created}] ${l.message}</div>`
+  ).join("");
+}
+
+function renderApp() {
+  const user = getCurrentUser();
+  if (user) {
+    loginView.classList.add("hidden");
+    appView.classList.remove("hidden");
+    currentUserLabel.textContent = user.label;
+    loadFinalisierteFragen();
+    loadRecords();
+  } else {
+    loginView.classList.remove("hidden");
+    appView.classList.add("hidden");
+  }
+  const logsCard = document.getElementById("logsCard");
+  if (user && user.isAdmin) {
+    logsCard.style.display = "block";
+    loadLogs();
+  } else {
+    logsCard.style.display = "none";
+  }
+}
+
+loadPersonsFromResolver();
+renderApp();
+</script>
+</body>
+</html>

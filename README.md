@@ -98,6 +98,17 @@ Zustand: `draft` → `finalized`
 
 18. Bernasconi kann die finalisierte Frage und die erhaltene Antwort in ihr **Solid Pod** verlinken — als persönlicher `Fragestunden-Case` in ihrem eigenen Namensraum. Keine Inhaltskopie — nur kryptographisch gesicherte Pointer auf die Records.
 
+### Implementierungsstand
+
+Das **Fragenmanagement** deckt Phase 1 sowie die Solid-Pod-Verlinkung aus Phase 5 ab.
+
+Das **Antwortmanagement** befindet sich im Basisausbau: Login über den Resolver der
+Bundeskanzlei und der Antwort-Lebenszyklus (Draft → Finalized) inklusive Versionierung.
+Die Frage wird dabei via DID direkt aus dem Fragenmanagement gelesen und nur über
+`frage_did` und `frage_snapshot_hash` referenziert. Das **Case-Konzept** (Phase 2), der
+**Nachweis-Record** und der **Case-Abschluss** (Phase 4) sowie die **LDN-Inbox** sind
+noch nicht implementiert.
+
 ---
 
 ## Technische Grundlage
@@ -156,9 +167,12 @@ poc-fragestunde/
 │  
 ├── apps/  
 │ ├── fragenmanagement/  
-│ │ └── fragenmanagement.html ← Single-file HTML-App  
-│ └── antwortmanagement/  
-│   └── antwortmanagement.html ← Single-file HTML-App  
+│ │ ├── backend/ ← Express-API (Records, DID, Swagger)  
+│ │ └── frontend/fragenmanagement.html ← Single-file HTML-App  
+│ ├── antwortmanagement/  
+│ │ ├── backend/ ← Express-API (Records, DID, Swagger)  
+│ │ └── frontend/antwortmanagement.html ← Single-file HTML-App  
+│ └── resolver/ ← Mini-DID-Resolver (je Instanz pro Organisation)  
 │  
 └── viewer/  
   └── rw-viewer.html ← Record-Viewer (liest Beispiel-Records)  
