@@ -78,8 +78,26 @@ curl https://vps.recordweb.dev/resolver/parlament/1.0/login/mb
 ## LDN zwischen Fragenmanagement und Antwortmanagement
 
 - Basiert auf W3C Linked Data Notifications (Inbox-Discovery, POST-Mechanismus)
-- Im PoC-Scope: Minimalimplementierung, CORS-basiert, keine Authentifizierung
-- Offen: Konkrete Inbox-URL-Konvention für beide Apps im PoC
+- Wird in 5 Etappen von Simulation auf produktive Zustellung umgestellt (Status je Etappe unten)
+
+### Inbox-Discovery (Etappe 1 — umgesetzt)
+
+Das Antwortmanagement macht seine Inbox-URL normativ per LDN-Link-Header auf `GET /health` bekannt:
+
+```
+Link: <https://vps.recordweb.dev/antwortmanagement/api/inbox>; rel="http://www.w3.org/ns/ldp#inbox"
+```
+
+Ein System-DID-Dokument (`did:rwp:b7d4c810:system/rwp-node`) existiert im PoC bewusst nicht — `did.js` löst ausschliesslich Record-DIDs auf. Der Link-Header ist daher der einzige, aber vollständig LDN-konforme Discovery-Weg.
+
+Das Fragenmanagement wird die Ziel-Inbox zusätzlich explizit über die Env-Variable `LDN_INBOX_URL` konfigurieren (Default: obige URL) — damit ist kein Discovery-Request zur Laufzeit vor jedem Versand nötig; der Link-Header bleibt für Spec-Konformität und externe Discovery bestehen.
+
+### Zustellung, Fehlerbehandlung, Authentifizierung (Etappe 2–5 — in Arbeit)
+
+- `POST /antwortmanagement/api/inbox` — nimmt Notifications entgegen, validiert LDN-Pflichtfelder (`@context`, `type`, `actor`, `object.id`) und HMAC-Signatur, speichert in `ldn_inbox` (Etappe 2)
+- Zustellung im Fragenmanagement läuft über echtes HTTP POST statt DB-Insert-Simulation (Etappe 3)
+- Retry/Backoff über eine Outbox-Tabelle (`ldn_outbox`) mit Dead-Letter-Status, sichtbar über `GET /fragenmanagement/api/outbox` analog zum bestehenden `GET /api/logs` (Etappe 4)
+- Notifications werden per HMAC-SHA256 (Shared Secret `LDN_SHARED_SECRET`) signiert; das Antwortmanagement weist unsignierte oder ungültig signierte POSTs mit 401 zurück (Etappe 5)
 
 ## Status
 
