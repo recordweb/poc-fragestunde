@@ -13,7 +13,16 @@ app.use(express.json());
 
 app.use("/antwortmanagement/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.get("/health", (req, res) => res.json({ status: "ok" }));
+// W3C Linked Data Notifications (LDN) — Inbox-Discovery per Link-Header.
+// Normativer Discovery-Mechanismus: rel="http://www.w3.org/ns/ldp#inbox"
+// zeigt auf den POST-Endpunkt, über den Notifications entgegengenommen werden.
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
+const INBOX_URL = `${PUBLIC_BASE_URL}/antwortmanagement/api/inbox`;
+
+app.get("/health", (req, res) => {
+  res.set("Link", `<${INBOX_URL}>; rel="http://www.w3.org/ns/ldp#inbox"`);
+  res.json({ status: "ok" });
+});
 
 app.get("/antwortmanagement/api/logs", async (req, res) => {
   const { rows } = await pool.query("SELECT * FROM server_logs ORDER BY created DESC LIMIT 100");
