@@ -22,7 +22,10 @@ app.use("/antwortmanagement/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerS
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
 const INBOX_URL = `${PUBLIC_BASE_URL}/antwortmanagement/api/inbox`;
 
-app.get("/health", (req, res) => {
+// Wichtig: nginx leitet unter /antwortmanagement/api/ den vollen Pfad ohne
+// Rewrite durch (siehe nginx/conf.d/default.conf) - die Route muss deshalb
+// unter dem vollen Pfad registriert werden, analog zu /records und /inbox.
+app.get("/antwortmanagement/api/health", (req, res) => {
   res.set("Link", `<${INBOX_URL}>; rel="http://www.w3.org/ns/ldp#inbox"`);
   res.json({ status: "ok" });
 });
