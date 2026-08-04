@@ -103,11 +103,19 @@ Das Fragenmanagement wird die Ziel-Inbox zusätzlich explizit über die Env-Vari
 
 - `sendLdnNotification()` im Fragenmanagement macht bei Finalisierung ein echtes `fetch`-POST an `LDN_INBOX_URL` — keine DB-Insert-Simulation mehr.
 - Default-Zustelladresse ist der interne Docker-Netzwerkname des Antwortmanagement-Containers (`http://antwort-api:3000/antwortmanagement/api/inbox`), nicht die öffentliche URL — schneller und unabhängig von nginx/Cloudflare, da beide Container im selben Docker-Netzwerk laufen. Die öffentliche URL aus dem Link-Header (Etappe 1) bleibt die für externe Discovery gültige Adresse.
-- `finalizeCommon()` bleibt synchron: Zustellversuch blockiert die Finalisierung nicht — bei Fehlern (Netzwerk, Non-2xx) wird `delivered=false` + `delivery_error` in `ldn_notifications` festgehalten und via `logEvent()` protokolliert, aber kein erneuter Versuch unternommen (folgt in Etappe 4).
+- `finalizeCommon()` bleibt synchron: Zustellversuch blockiert die Finalisierung nicht — bei Fehlern (Netzwerk, Non-2xx) wird `delivered=false` + `delivery_error` in `ldn_notifications` festgehalten und via `logEvent()` protokolliert. Automatische Wiederholung folgt in Etappe 4.
 
-### Fehlerbehandlung, Authentifizierung (Etappe 4–5 — in Arbeit)
+### Fehlerbehandlung — Retry, Dead-Letter, konfigurierbare Zustelladresse (Etappe 4 — umgesetzt)
 
-- Retry/Backoff über eine Outbox-Tabelle (`ldn_outbox`) mit Dead-Letter-Status, sichtbar über `GET /fragenmanagement/api/outbox` analog zum bestehenden `GET /api/logs` (Etappe 4)
+- Zustellstatus wird direkt auf der jeweiligen Zeile in `ldn_notifications` gepflegt (`status`, `attempts`, `delivery_error`, `next_attempt_at`, `target_url`) — keine separate Tabelle nötig, eine Notification ist ihr eigener Outbox-Eintrag.
+- Bei Zustellfehlern (Netzwerk, Non-2xx) wird automatisch mit exponentiellem Backoff wiederholt (30s / 1min / 2min / 4min / 8min, gedeckelt bei 10min), bis zu `MAX_ATTEMPTS = 5`. Danach `status = 'dead_letter'` — keine weiteren automatischen Versuche.
+- Ein periodischer Worker (`startOutboxWorker()` in `ldn.js`-Umfeld, alle 15s) prüft fällige Retries.
+- `GET /fragenmanagement/api/outbox` listet alle Zustellversuche mit Status, Versuchsanzahl, letztem Fehler und nächstem geplanten Versuch — analog zum bestehenden `GET /api/logs`.
+- `POST /fragenmanagement/api/outbox/:id/retry` löst einen sofortigen manuellen Zustellversuch aus, unabhängig vom Backoff — funktioniert auch für bereits als Dead Letter markierte Notifications.
+- Die Zustelladresse (`LDN_INBOX_URL`) ist zur Laufzeit über `GET`/`PUT /fragenmanagement/api/settings/ldn-inbox-url` konfigurierbar (persistiert in `app_settings`), mit der Docker-Compose-Umgebungsvariable `LDN_INBOX_URL` als Fallback-Default. Im Admin-Bereich des Fragenmanagement-Frontends editierbar — ermöglicht die Demonstration, dass eine falsche Adresse zu `failed`/`dead_letter` führt und die Korrektur (ggf. mit manuellem Retry) die Zustellung nachträglich ermöglicht.
+
+### Authentifizierung (Etappe 5 — in Arbeit)
+
 - Notifications werden per HMAC-SHA256 (Shared Secret `LDN_SHARED_SECRET`) signiert; das Antwortmanagement weist unsignierte oder ungültig signierte POSTs mit 401 zurück (Etappe 5)
 
 ## Status

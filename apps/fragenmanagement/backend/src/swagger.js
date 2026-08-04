@@ -14,7 +14,9 @@ const options = {
     tags: [
       { name: "Records", description: "Fragestunde-Frage Records" },
       { name: "Solid", description: "Solid-Pod-Links" },
-      { name: "DID", description: "DID-Resolver" }
+      { name: "DID", description: "DID-Resolver" },
+      { name: "Settings", description: "Konfigurierbare Einstellungen (u.a. LDN-Inbox-Zustelladresse)" },
+      { name: "Outbox", description: "LDN-Zustellversuche: Status, Retries, Dead Letters" }
     ]
   },
   apis: ["./src/routes/*.js"]
