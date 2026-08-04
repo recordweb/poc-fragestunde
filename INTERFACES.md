@@ -92,9 +92,15 @@ Ein System-DID-Dokument (`did:rwp:b7d4c810:system/rwp-node`) existiert im PoC be
 
 Das Fragenmanagement wird die Ziel-Inbox zusätzlich explizit über die Env-Variable `LDN_INBOX_URL` konfigurieren (Default: obige URL) — damit ist kein Discovery-Request zur Laufzeit vor jedem Versand nötig; der Link-Header bleibt für Spec-Konformität und externe Discovery bestehen.
 
-### Zustellung, Fehlerbehandlung, Authentifizierung (Etappe 2–5 — in Arbeit)
+### Inbox-Route (Etappe 2 — umgesetzt)
 
-- `POST /antwortmanagement/api/inbox` — nimmt Notifications entgegen, validiert LDN-Pflichtfelder (`@context`, `type`, `actor`, `object.id`) und HMAC-Signatur, speichert in `ldn_inbox` (Etappe 2)
+- `POST /antwortmanagement/api/inbox` — nimmt Notifications entgegen, validiert LDN-Pflichtfelder (`@context`, `id`, `type`, `actor`, `object.id`), speichert in `ldn_inbox`, antwortet `201 Created` mit `Location`-Header auf die gespeicherte Notification
+- `GET /antwortmanagement/api/inbox` — listet empfangene Notifications (neueste zuerst), `GET /antwortmanagement/api/inbox/:id` liefert eine einzelne Notification vollständig
+- Bewusst **ohne Zugriffskontrolle** — wie alle anderen bestehenden Routen in diesem PoC ist die Inbox offen lesbar/schreibbar. Entscheid: Der PoC ist ein Demonstrator, bei dem Offenheit den Ablauf nachvollziehbar zeigen soll; das gilt genauso für das `rwp:owner`-Feld, das bewusst nicht pseudonymisiert wird
+- Noch keine Signatur-/Herkunftsprüfung des Absenders — folgt in Etappe 5
+
+### Zustellung, Fehlerbehandlung, Authentifizierung (Etappe 3–5 — in Arbeit)
+
 - Zustellung im Fragenmanagement läuft über echtes HTTP POST statt DB-Insert-Simulation (Etappe 3)
 - Retry/Backoff über eine Outbox-Tabelle (`ldn_outbox`) mit Dead-Letter-Status, sichtbar über `GET /fragenmanagement/api/outbox` analog zum bestehenden `GET /api/logs` (Etappe 4)
 - Notifications werden per HMAC-SHA256 (Shared Secret `LDN_SHARED_SECRET`) signiert; das Antwortmanagement weist unsignierte oder ungültig signierte POSTs mit 401 zurück (Etappe 5)

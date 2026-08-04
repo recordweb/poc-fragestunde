@@ -52,6 +52,20 @@ export async function initSchema() {
       message    TEXT NOT NULL,
       created    TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+    -- W3C Linked Data Notifications (LDN) — empfangene Notifications.
+    -- Bewusst offen/unauthentifiziert im PoC (Demonstrator), siehe INTERFACES.md.
+    CREATE TABLE IF NOT EXISTS ${SCHEMA}.ldn_inbox (
+      id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      notification_id   TEXT,
+      actor             TEXT,
+      target            TEXT,
+      object_did        TEXT,
+      received          TIMESTAMPTZ NOT NULL DEFAULT now(),
+      payload           JSONB NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ldn_inbox_received ON ${SCHEMA}.ldn_inbox(received DESC);
   `);
 }
 
