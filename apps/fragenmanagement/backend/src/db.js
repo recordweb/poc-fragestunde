@@ -84,6 +84,23 @@ export async function initSchema() {
     ALTER TABLE records ALTER COLUMN payload DROP NOT NULL;
     ALTER TABLE records ALTER COLUMN record_type DROP NOT NULL;
     ALTER TABLE records ALTER COLUMN schema_version DROP NOT NULL;
+
+    -- Etappe 3: echte LDN-Zustellung statt Simulation — Ergebnis pro Notification sichtbar machen.
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ldn_notifications' AND column_name = 'delivered'
+      ) THEN
+        ALTER TABLE ldn_notifications ADD COLUMN delivered BOOLEAN NOT NULL DEFAULT false;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ldn_notifications' AND column_name = 'delivery_error'
+      ) THEN
+        ALTER TABLE ldn_notifications ADD COLUMN delivery_error TEXT;
+      END IF;
+    END $$;
   `);
 }
 

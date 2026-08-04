@@ -99,9 +99,14 @@ Das Fragenmanagement wird die Ziel-Inbox zusätzlich explizit über die Env-Vari
 - Bewusst **ohne Zugriffskontrolle** — wie alle anderen bestehenden Routen in diesem PoC ist die Inbox offen lesbar/schreibbar. Entscheid: Der PoC ist ein Demonstrator, bei dem Offenheit den Ablauf nachvollziehbar zeigen soll; das gilt genauso für das `rwp:owner`-Feld, das bewusst nicht pseudonymisiert wird
 - Noch keine Signatur-/Herkunftsprüfung des Absenders — folgt in Etappe 5
 
-### Zustellung, Fehlerbehandlung, Authentifizierung (Etappe 3–5 — in Arbeit)
+### Echte Zustellung (Etappe 3 — umgesetzt)
 
-- Zustellung im Fragenmanagement läuft über echtes HTTP POST statt DB-Insert-Simulation (Etappe 3)
+- `sendLdnNotification()` im Fragenmanagement macht bei Finalisierung ein echtes `fetch`-POST an `LDN_INBOX_URL` — keine DB-Insert-Simulation mehr.
+- Default-Zustelladresse ist der interne Docker-Netzwerkname des Antwortmanagement-Containers (`http://antwort-api:3000/antwortmanagement/api/inbox`), nicht die öffentliche URL — schneller und unabhängig von nginx/Cloudflare, da beide Container im selben Docker-Netzwerk laufen. Die öffentliche URL aus dem Link-Header (Etappe 1) bleibt die für externe Discovery gültige Adresse.
+- `finalizeCommon()` bleibt synchron: Zustellversuch blockiert die Finalisierung nicht — bei Fehlern (Netzwerk, Non-2xx) wird `delivered=false` + `delivery_error` in `ldn_notifications` festgehalten und via `logEvent()` protokolliert, aber kein erneuter Versuch unternommen (folgt in Etappe 4).
+
+### Fehlerbehandlung, Authentifizierung (Etappe 4–5 — in Arbeit)
+
 - Retry/Backoff über eine Outbox-Tabelle (`ldn_outbox`) mit Dead-Letter-Status, sichtbar über `GET /fragenmanagement/api/outbox` analog zum bestehenden `GET /api/logs` (Etappe 4)
 - Notifications werden per HMAC-SHA256 (Shared Secret `LDN_SHARED_SECRET`) signiert; das Antwortmanagement weist unsignierte oder ungültig signierte POSTs mit 401 zurück (Etappe 5)
 
