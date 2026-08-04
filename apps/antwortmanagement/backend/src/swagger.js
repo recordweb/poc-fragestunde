@@ -13,7 +13,8 @@ const options = {
     ],
     tags: [
       { name: "Records", description: "Fragestunde-Antwort Records" },
-      { name: "DID", description: "DID-Resolver" }
+      { name: "DID", description: "DID-Resolver" },
+      { name: "LDN", description: "W3C Linked Data Notifications Inbox" }
     ]
   },
   apis: ["./src/routes/*.js"]

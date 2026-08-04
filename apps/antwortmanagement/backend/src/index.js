@@ -4,12 +4,15 @@ import pool from "./db.js";
 import { initSchema } from "./db.js";
 import recordsRouter from "./routes/records.js";
 import didRouter from "./routes/did.js";
+import inboxRouter from "./routes/inbox.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./swagger.js";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// LDN-Notifications kommen typischerweise als application/ld+json statt
+// application/json — beide sollen als JSON-Body geparst werden.
+app.use(express.json({ type: ["application/json", "application/ld+json"] }));
 
 app.use("/antwortmanagement/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
@@ -30,6 +33,8 @@ app.get("/antwortmanagement/api/logs", async (req, res) => {
 });
 
 app.use("/antwortmanagement/api/records", recordsRouter);
+
+app.use("/antwortmanagement/api/inbox", inboxRouter);
 
 app.use("/antwortmanagement/did", didRouter);
 
