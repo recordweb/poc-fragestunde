@@ -58,10 +58,11 @@ async function createSnapshot({
 async function finalizeCommon(did, finalizedSnapshot) {
   await pool.query(`UPDATE records SET current_snapshot_id=$1 WHERE did=$2`, [finalizedSnapshot.id, did]);
   const updated = await getFullRecord(did);
-  const notification = await sendLdnNotification(updated);
+  const { notification, delivered, deliveryError } = await sendLdnNotification(updated);
   await pool.query(
-    `INSERT INTO ldn_notifications (id, record_did, target, published, payload) VALUES ($1,$2,$3,$4,$5)`,
-    [notification.id, did, notification.target, notification.published, notification]
+    `INSERT INTO ldn_notifications (id, record_did, target, published, payload, delivered, delivery_error)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [notification.id, did, notification.target, notification.published, notification, delivered, deliveryError]
   );
   return updated;
 }

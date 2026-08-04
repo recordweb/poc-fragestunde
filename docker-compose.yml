@@ -26,6 +26,7 @@ services:
       PGPASSWORD: poc_recordweb
       PGDATABASE: poc_db
       PUBLIC_BASE_URL: https://vps.recordweb.dev
+      LDN_INBOX_URL: http://antwort-api:3000/antwortmanagement/api/inbox
     volumes:
       - ./schemas:/app/schemas:ro
     networks:
