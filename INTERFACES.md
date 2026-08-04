@@ -82,7 +82,7 @@ curl https://vps.recordweb.dev/resolver/parlament/1.0/login/mb
 
 ### Inbox-Discovery (Etappe 1 — umgesetzt)
 
-Das Antwortmanagement macht seine Inbox-URL normativ per LDN-Link-Header auf `GET /health` bekannt:
+Das Antwortmanagement macht seine Inbox-URL normativ per LDN-Link-Header auf `GET /antwortmanagement/api/health` bekannt:
 
 ```
 Link: <https://vps.recordweb.dev/antwortmanagement/api/inbox>; rel="http://www.w3.org/ns/ldp#inbox"
