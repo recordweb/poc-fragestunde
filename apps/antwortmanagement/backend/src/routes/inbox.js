@@ -95,6 +95,43 @@ router.get("/", async (req, res) => {
   res.json(rows);
 });
 
+// ---------- GET /inbox/offene-fragen — Fragen ohne Antwort ----------
+/**
+ * @openapi
+ * /inbox/offene-fragen:
+ *   get:
+ *     tags: [LDN]
+ *     summary: Über die Inbox empfangene Fragen, die noch keine Antwort haben
+ *     description: >
+ *       Liefert je Frage (object_did) den neuesten Inbox-Eintrag, gefiltert auf
+ *       solche, deren object_did noch nicht als frage_did in einem bestehenden
+ *       Antwort-Record (Draft oder finalisiert) referenziert wird. Ersetzt den
+ *       früheren direkten Zugriff des Antwortmanagement-Frontends auf die
+ *       Fragenmanagement-API — die Fragenauswahl kennt nur, was per LDN
+ *       tatsächlich zugestellt wurde.
+ *     responses:
+ *       200:
+ *         description: Liste offener (noch unbeantworteter) Fragen, neueste zuerst
+ */
+router.get("/offene-fragen", async (req, res) => {
+  const { rows } = await pool.query(`
+    SELECT * FROM (
+      SELECT DISTINCT ON (i.object_did)
+             i.id, i.notification_id, i.actor, i.target, i.object_did, i.received, i.payload
+      FROM ldn_inbox i
+      WHERE NOT EXISTS (
+        SELECT 1 FROM records r
+        JOIN record_snapshots s ON s.id = r.current_snapshot_id
+        WHERE s.payload->>'frage_did' = i.object_did
+      )
+      ORDER BY i.object_did, i.received DESC
+    ) offene
+    ORDER BY received DESC
+    LIMIT 200
+  `);
+  res.json(rows);
+});
+
 // ---------- GET /inbox/:id — Einzelne Notification ----------
 /**
  * @openapi

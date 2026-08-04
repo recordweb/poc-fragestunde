@@ -22,6 +22,12 @@ export function buildLdnNotification(record) {
       "rwp:recordType": record.record_type,
       "rwp:state": "finalized",
       "rwp:owner": record.owner,
+      // Fragetext/Session werden mitgeschickt, damit das Antwortmanagement
+      // seine Auswahlliste rein aus der Inbox aufbauen kann, ohne die
+      // Frage per direktem API-Call beim Fragenmanagement nachzuladen
+      // (siehe Etappe "Antwortmanagement liest nur noch aus der Inbox").
+      "rwp:fragetext": record.payload.fragetext,
+      "rwp:session": record.payload.session,
       summary: `Neue finalisierte Fragestunde-Frage von ${record.owner} — ${record.payload.session}`
     }
   };

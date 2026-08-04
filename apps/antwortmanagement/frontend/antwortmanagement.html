@@ -41,9 +41,9 @@
 
   <div class="card">
     <h2 id="formTitle">Neue Antwort</h2>
-    <label for="frageSelect">Frage aus dem Fragenmanagement</label>
+    <label for="frageSelect">Offene Frage aus der Inbox (noch unbeantwortet)</label>
     <select id="frageSelect">
-      <option value="">Lädt finalisierte Fragen…</option>
+      <option value="">Lädt Fragen aus der Inbox…</option>
     </select>
     <div id="frageVorschau" class="did"></div>
     <textarea id="antworttext" maxlength="500" rows="4" placeholder="Ihre Antwort (max. 500 Zeichen)"></textarea>
@@ -67,7 +67,11 @@
 const API_BASE = "/antwortmanagement/api/records";
 
 const RESOLVER_BASE = "/resolver/bk";
-const FRAGEN_API_BASE = "/fragenmanagement/api/records";
+// Die Frage-Auswahl wird bewusst NICHT mehr direkt beim Fragenmanagement
+// abgefragt, sondern ausschliesslich aus der eigenen LDN-Inbox aufgebaut —
+// das Antwortmanagement kennt eine Frage erst, wenn sie ihm per Notification
+// zugestellt wurde.
+const INBOX_API_BASE = "/antwortmanagement/api/inbox";
 
 const RECORD_TYPE_ANTWORT = "did:rwp:b7d4c810:schema:fragestunde-antwort";
 
@@ -84,7 +88,13 @@ const frageVorschau = document.getElementById("frageVorschau");
 let editingDid = null;
 
 let lastLoadedRecords = [];
+// finalisierteFragen: nur die noch NICHT mit einer Antwort verknüpften Fragen
+// (das ist die Auswahlliste, die der Benutzer sieht).
 let finalisierteFragen = [];
+// alleEingegangeneFragen: alle je per Inbox empfangenen Fragen, unabhängig davon,
+// ob schon verknüpft — wird u.a. gebraucht, um beim Bearbeiten einer bestehenden
+// Antwort deren eigene (bereits verknüpfte) Frage weiterhin anzeigen zu können.
+let alleEingegangeneFragen = [];
 
 function getCurrentUser() {
   const raw = sessionStorage.getItem("currentUser");
@@ -131,33 +141,59 @@ async function loadPersonsFromResolver() {
 
 document.getElementById("logoutBtn").addEventListener("click", logout);
 
-// Die Frage wird via DID aus dem Fragenmanagement gelesen — keine lokale Kopie.
-// Übernommen werden nur die Referenzfelder frage_did und frage_snapshot_hash.
+// Die Frage wird ausschliesslich über die LDN-Inbox bekannt — keine lokale
+// Kopie und kein direkter Zugriff auf das Fragenmanagement. Fragen, die schon
+// mit einer (Draft- oder finalisierten) Antwort verknüpft sind, werden aus
+// der Auswahl ausgeblendet, damit dieselbe Frage nicht zweimal beantwortet
+// werden kann.
+function inboxEintragZuFrage(entry) {
+  const obj = (entry.payload && entry.payload.object) || {};
+  return {
+    did: entry.object_did,
+    snapshot_hash: obj["rwp:snapshotHash"],
+    fragetext: obj["rwp:fragetext"] || obj.summary || "(kein Fragetext in der Notification enthalten)",
+    session: obj["rwp:session"] || "",
+    received: entry.received
+  };
+}
+
 async function loadFinalisierteFragen() {
   try {
-    const res = await fetch(FRAGEN_API_BASE);
-    const all = await res.json();
-    finalisierteFragen = all.filter(f => f.state === "finalized");
+    // /offene-fragen filtert bereits serverseitig auf Inbox-Einträge ohne
+    // verknüpfte Antwort; /inbox (unfiltriert) wird zusätzlich geladen, damit
+    // beim Bearbeiten einer bestehenden Antwort deren eigene, schon verknüpfte
+    // Frage weiterhin dargestellt werden kann (siehe startEdit).
+    const [offeneRes, alleRes] = await Promise.all([
+      fetch(`${INBOX_API_BASE}/offene-fragen`),
+      fetch(INBOX_API_BASE)
+    ]);
+    finalisierteFragen = (await offeneRes.json()).map(inboxEintragZuFrage);
+    alleEingegangeneFragen = (await alleRes.json()).map(inboxEintragZuFrage);
   } catch (err) {
     finalisierteFragen = [];
+    alleEingegangeneFragen = [];
   }
 
+  renderFrageSelect();
+}
+
+function renderFrageSelect() {
   frageSelect.innerHTML = "";
   if (!finalisierteFragen.length) {
-    frageSelect.innerHTML = '<option value="">Keine finalisierten Fragen verfügbar</option>';
+    frageSelect.innerHTML = '<option value="">Keine offenen Fragen aus der Inbox verfügbar</option>';
     return;
   }
   frageSelect.appendChild(new Option("— Frage wählen —", ""));
   finalisierteFragen.forEach(f => {
-    const kurz = f.payload.fragetext.length > 70
-      ? f.payload.fragetext.slice(0, 70) + "…"
-      : f.payload.fragetext;
-    frageSelect.appendChild(new Option(`${f.payload.session} — ${kurz}`, f.did));
+    const kurz = f.fragetext.length > 70
+      ? f.fragetext.slice(0, 70) + "…"
+      : f.fragetext;
+    frageSelect.appendChild(new Option(`${f.session} — ${kurz}`, f.did));
   });
 }
 
 function renderFrageVorschau() {
-  const frage = finalisierteFragen.find(f => f.did === frageSelect.value);
+  const frage = alleEingegangeneFragen.find(f => f.did === frageSelect.value);
   frageVorschau.innerHTML = frage
     ? `Frage-DID: ${frage.did}<br>Snapshot-Hash: ${frage.snapshot_hash}`
     : "";
@@ -231,7 +267,19 @@ function startEdit(did, records) {
   const record = records.find(r => r.did === did);
   if (!record) return;
   editingDid = did;
-  frageSelect.value = record.payload.frage_did;
+
+  // Die bereits mit diesem Record verknüpfte Frage ist per Definition aus der
+  // regulären Auswahl ausgeblendet (sie gilt ja als "schon beantwortet") —
+  // beim Bearbeiten muss sie trotzdem auswählbar bleiben.
+  const frageDid = record.payload.frage_did;
+  if (!finalisierteFragen.some(f => f.did === frageDid)) {
+    const bestehende = alleEingegangeneFragen.find(f => f.did === frageDid);
+    const label = bestehende
+      ? `${bestehende.session} — ${bestehende.fragetext.slice(0, 70)}`
+      : `(verknüpfte Frage) ${frageDid}`;
+    frageSelect.appendChild(new Option(label, frageDid));
+  }
+  frageSelect.value = frageDid;
   renderFrageVorschau();
   document.getElementById("antworttext").value = record.payload.antworttext;
   formTitle.textContent = "Antwort bearbeiten";
@@ -243,6 +291,7 @@ function startEdit(did, records) {
 function cancelEdit() {
   editingDid = null;
   document.getElementById("antworttext").value = "";
+  renderFrageSelect(); // baut die Liste neu auf und entfernt die temporär für die Bearbeitung ergänzte Option
   frageSelect.value = "";
   renderFrageVorschau();
   formTitle.textContent = "Neue Antwort";
@@ -259,6 +308,7 @@ async function finalizeRecord(did) {
   if (!ok) return;
   await fetch(`${API_BASE}/${encodeURIComponent(did)}/finalize`, { method: "PUT" });
   loadRecords();
+  loadFinalisierteFragen();
 }
 
 async function startNewVersion(did) {
@@ -274,12 +324,13 @@ async function startNewVersion(did) {
     return;
   }
   loadRecords();
+  loadFinalisierteFragen();
 }
 
 saveDraftBtn.addEventListener("click", async () => {
   const user = getCurrentUser();
   const antworttext = document.getElementById("antworttext").value.trim();
-  const frage = finalisierteFragen.find(f => f.did === frageSelect.value);
+  const frage = alleEingegangeneFragen.find(f => f.did === frageSelect.value);
 
   if (!frage) {
     alert("Bitte eine finalisierte Frage auswählen.");
@@ -321,6 +372,7 @@ saveDraftBtn.addEventListener("click", async () => {
 
   cancelEdit();
   loadRecords();
+  loadFinalisierteFragen();
 });
 
 recordsList.addEventListener("click", (e) => {
