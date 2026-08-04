@@ -4,6 +4,9 @@ import pool from "./db.js";
 import { initSchema } from "./db.js";
 import recordsRouter from "./routes/records.js";
 import didRouter from "./routes/did.js";
+import settingsRouter from "./routes/settings.js";
+import outboxRouter from "./routes/outbox.js";
+import { startOutboxWorker } from "./outbox.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./swagger.js";
 
@@ -26,13 +29,19 @@ app.get("/fragenmanagement/api/logs", async (req, res) => {
 });
 
 app.use("/fragenmanagement/api/records", recordsRouter);
+app.use("/fragenmanagement/api/settings", settingsRouter);
+app.use("/fragenmanagement/api/outbox", outboxRouter);
 
 app.use("/fragenmanagement/did", didRouter);
 
 const PORT = process.env.PORT || 3000;
 
 initSchema()
-  .then(() => app.listen(PORT, () => console.log(`API listening on ${PORT}`)))
+  .then(() => {
+    app.listen(PORT, () => console.log(`API listening on ${PORT}`));
+    // Etappe 4: prüft periodisch fällige Retries fehlgeschlagener LDN-Zustellungen.
+    startOutboxWorker();
+  })
   .catch(err => {
     console.error("Schema init failed", err);
     process.exit(1);

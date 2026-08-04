@@ -60,6 +60,24 @@
     <div id="notificationsList"></div>
   </div>
 
+  <div class="card" id="settingsCard" style="display:none;">
+    <h2>Einstellungen (Admin)</h2>
+    <label for="ldnInboxUrlInput">LDN-Inbox-Zustelladresse (echtes Ziel des HTTP-POST bei Finalisierung)</label>
+    <input type="text" id="ldnInboxUrlInput" style="width:100%; margin: 6px 0;">
+    <button id="saveLdnInboxUrlBtn">Speichern</button>
+    <span id="ldnInboxUrlStatus" style="margin-left:8px; font-size:0.85rem; color:#666;"></span>
+    <p style="font-size:0.8rem; color:#666; margin-top:6px;">
+      Zum Testen: hier absichtlich eine falsche Adresse eintragen und eine Frage finalisieren
+      — die Zustellung sollte in der Outbox unten als "failed" erscheinen. Danach die korrekte
+      Adresse wieder eintragen und über "Jetzt erneut versuchen" nachträglich zustellen.
+    </p>
+  </div>
+
+  <div class="card" id="outboxCard" style="display:none;">
+    <h2>LDN-Zustellung / Outbox (Admin)</h2>
+    <div id="outboxList"></div>
+  </div>
+
   <div class="card" id="logsCard" style="display:none;">
     <h2>Server-Logs (Admin)</h2>
     <div id="logsList"></div>
@@ -429,6 +447,71 @@ async function loadLogs() {
   ).join("");
 }
 
+async function loadSettings() {
+  const res = await fetch("/fragenmanagement/api/settings/ldn-inbox-url");
+  const data = await res.json();
+  document.getElementById("ldnInboxUrlInput").value = data.value;
+}
+
+document.getElementById("saveLdnInboxUrlBtn").addEventListener("click", async () => {
+  const input = document.getElementById("ldnInboxUrlInput");
+  const status = document.getElementById("ldnInboxUrlStatus");
+  status.textContent = "Speichere…";
+  try {
+    const res = await fetch("/fragenmanagement/api/settings/ldn-inbox-url", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: input.value })
+    });
+    status.textContent = res.ok ? "Gespeichert." : "Fehler beim Speichern.";
+  } catch (err) {
+    status.textContent = "Fehler beim Speichern.";
+  }
+  setTimeout(() => { status.textContent = ""; }, 4000);
+});
+
+const OUTBOX_STATUS_LABELS = {
+  pending: "wird zugestellt…",
+  delivered: "zugestellt",
+  failed: "fehlgeschlagen, Retry geplant",
+  dead_letter: "Dead Letter (keine automatischen Versuche mehr)"
+};
+
+async function loadOutbox() {
+  const res = await fetch("/fragenmanagement/api/outbox");
+  const entries = await res.json();
+  const list = document.getElementById("outboxList");
+  if (!entries.length) {
+    list.innerHTML = "<p>Keine Zustellversuche vorhanden.</p>";
+    return;
+  }
+  list.innerHTML = entries.map(e => `
+    <div class="record" style="border-left: 4px solid ${e.status === "delivered" ? "#2e7d32" : e.status === "dead_letter" ? "#b71c1c" : "#f57f17"};">
+      <strong>${OUTBOX_STATUS_LABELS[e.status] || e.status}</strong>
+      (Versuch ${e.attempts}/${e.max_attempts})<br>
+      <span class="did">Notification: ${e.id}</span><br>
+      <span class="did">Record: ${e.record_did}</span><br>
+      ${e.target_url ? `<span class="did">Letztes Ziel: ${e.target_url}</span><br>` : ""}
+      ${e.delivery_error ? `<span class="did">Fehler: ${e.delivery_error}</span><br>` : ""}
+      ${e.next_attempt_at ? `<span class="did">Nächster automatischer Versuch: ${e.next_attempt_at}</span><br>` : ""}
+      ${e.status !== "delivered" ? `<button class="retryOutboxBtn" data-id="${e.id}">Jetzt erneut versuchen</button>` : ""}
+    </div>
+  `).join("");
+}
+
+document.getElementById("outboxList").addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("retryOutboxBtn")) return;
+  const id = e.target.dataset.id;
+  e.target.disabled = true;
+  e.target.textContent = "Versuche…";
+  try {
+    await fetch(`/fragenmanagement/api/outbox/${encodeURIComponent(id)}/retry`, { method: "POST" });
+  } catch (err) {
+    // Fehler wird ohnehin über den aktualisierten Status sichtbar
+  }
+  await loadOutbox();
+});
+
 function renderApp() {
   const user = getCurrentUser();
   if (user) {
@@ -449,11 +532,19 @@ function renderApp() {
     appView.classList.add("hidden");
   }
   const logsCard = document.getElementById("logsCard");
+  const settingsCard = document.getElementById("settingsCard");
+  const outboxCard = document.getElementById("outboxCard");
   if (user && user.isAdmin) {
     logsCard.style.display = "block";
     loadLogs();
+    settingsCard.style.display = "block";
+    loadSettings();
+    outboxCard.style.display = "block";
+    loadOutbox();
   } else {
     logsCard.style.display = "none";
+    settingsCard.style.display = "none";
+    outboxCard.style.display = "none";
   }
 }
 

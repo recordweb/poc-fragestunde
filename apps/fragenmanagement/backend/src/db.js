@@ -101,6 +101,44 @@ export async function initSchema() {
         ALTER TABLE ldn_notifications ADD COLUMN delivery_error TEXT;
       END IF;
     END $$;
+
+    -- Etappe 4: Retry-Logik, Dead-Letter, konfigurierbare Zustelladresse.
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ldn_notifications' AND column_name = 'status'
+      ) THEN
+        ALTER TABLE ldn_notifications ADD COLUMN status TEXT NOT NULL DEFAULT 'pending';
+        -- Bereits vorhandene Zeilen einfrieren, damit der neue Retry-Worker nicht
+        -- rueckwirkend alte/simulierte Notifications real zuzustellen versucht.
+        UPDATE ldn_notifications SET status = CASE WHEN delivered THEN 'delivered' ELSE 'dead_letter' END;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ldn_notifications' AND column_name = 'attempts'
+      ) THEN
+        ALTER TABLE ldn_notifications ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ldn_notifications' AND column_name = 'next_attempt_at'
+      ) THEN
+        ALTER TABLE ldn_notifications ADD COLUMN next_attempt_at TIMESTAMPTZ;
+      END IF;
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ldn_notifications' AND column_name = 'target_url'
+      ) THEN
+        ALTER TABLE ldn_notifications ADD COLUMN target_url TEXT;
+      END IF;
+    END $$;
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key       TEXT PRIMARY KEY,
+      value     TEXT NOT NULL,
+      updated   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
 }
 
