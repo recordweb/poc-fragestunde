@@ -114,6 +114,14 @@ Das Fragenmanagement wird die Ziel-Inbox zusätzlich explizit über die Env-Vari
 - `POST /fragenmanagement/api/outbox/:id/retry` löst einen sofortigen manuellen Zustellversuch aus, unabhängig vom Backoff — funktioniert auch für bereits als Dead Letter markierte Notifications.
 - Die Zustelladresse (`LDN_INBOX_URL`) ist zur Laufzeit über `GET`/`PUT /fragenmanagement/api/settings/ldn-inbox-url` konfigurierbar (persistiert in `app_settings`), mit der Docker-Compose-Umgebungsvariable `LDN_INBOX_URL` als Fallback-Default. Im Admin-Bereich des Fragenmanagement-Frontends editierbar — ermöglicht die Demonstration, dass eine falsche Adresse zu `failed`/`dead_letter` führt und die Korrektur (ggf. mit manuellem Retry) die Zustellung nachträglich ermöglicht.
 
+### Antwortmanagement liest Fragen nur noch aus der Inbox (Etappe 4b — umgesetzt)
+
+- Die Fragenauswahl im Antwortmanagement-Frontend rief bisher direkt `GET /fragenmanagement/api/records` auf — ein direkter Zugriff auf die Datenbasis des anderen Bounded Context, am eigentlichen LDN-Fluss vorbei.
+- Die Notification (`buildLdnNotification()` im Fragenmanagement) trägt neu `rwp:fragetext` und `rwp:session` im `object`, damit die Auswahlliste ohne Rückgriff auf das Fragenmanagement dargestellt werden kann.
+- `GET /antwortmanagement/api/inbox/offene-fragen` (neu) liefert nur Inbox-Einträge, deren `object_did` **noch nicht** als `frage_did` in einem bestehenden Antwort-Record (Draft oder finalisiert) vorkommt — dedupliziert nach `object_did` (neuester Eintrag gewinnt), sortiert nach Empfangsdatum.
+- Effekt: Wird versucht, dieselbe Frage doppelt zu beantworten, taucht sie nach dem ersten Draft nicht mehr in der Auswahl auf; wird eine falsche Inbox-Adresse konfiguriert (Etappe 4), erscheinen neue Fragen im Antwortmanagement erst gar nicht, was den Fehlerfall in der Demo sichtbar macht.
+- Beim Bearbeiten (`startEdit`) einer bereits verknüpften Antwort wird deren Frage weiterhin angezeigt (aus dem lokalen Cache aller je empfangenen Fragen), damit die bestehende Verknüpfung sichtbar bleibt, auch wenn sie nicht mehr Teil der offenen Auswahl ist.
+
 ### Authentifizierung (Etappe 5 — in Arbeit)
 
 - Notifications werden per HMAC-SHA256 (Shared Secret `LDN_SHARED_SECRET`) signiert; das Antwortmanagement weist unsignierte oder ungültig signierte POSTs mit 401 zurück (Etappe 5)
