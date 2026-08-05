@@ -2,53 +2,13 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import pool from "../db.js";
 import { validatePayload, schemaVersionHash, RECORD_TYPE_ANTWORT } from "../schemas.js";
-import { computeSnapshotHash, computePayloadHash } from "../crypto.js";
+import { computePayloadHash } from "../crypto.js";
 import { logEvent } from "../logger.js";
+import { getFullRecord, createSnapshot, insertRecord, setCurrentSnapshot } from "../recordCore.js";
+import { promoteWorkingLinkToHardLink } from "../caseSync.js";
 
 const router = express.Router();
 const NAMESPACE_ANTWORTMANAGEMENT = "b7d4c810";
-
-// ---------- Helper ----------
-
-async function getFullRecord(did) {
-  const { rows } = await pool.query(
-    `SELECT r.did, r.record_type, r.owner, r.created AS record_created,
-            s.*
-     FROM records r JOIN record_snapshots s ON s.id = r.current_snapshot_id
-     WHERE r.did = $1`,
-    [did]
-  );
-  return rows[0] || null;
-}
-
-async function createSnapshot({
-  did, parents, state, recordType, schemaVersion, owner, payload,
-  payloadFormat, correctionReason = null
-}) {
-  const payloadHash = computePayloadHash(payload);
-  const finalized = state === "finalized" ? new Date().toISOString() : null;
-
-  const metadataWithoutHash = {
-    did, recordType, schemaVersion, state, parents,
-    owner, payloadHash, payloadFormat,
-    ...(finalized ? { finalized } : {})
-  };
-  const snapshotHash = computeSnapshotHash(metadataWithoutHash, payload);
-
-  const { rows } = await pool.query(
-    `INSERT INTO record_snapshots
-       (did, snapshot_hash, parents, state, record_type, schema_version, owner,
-        payload, payload_hash, payload_format, correction_reason, finalized, signature)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-     RETURNING *`,
-    [
-      did, snapshotHash, JSON.stringify(parents), state, recordType, schemaVersion, owner,
-      payload, payloadHash, payloadFormat,
-      correctionReason, finalized, state === "finalized" ? "z_PLACEHOLDER_PoC_signature" : null
-    ]
-  );
-  return rows[0];
-}
 
 // ---------- Interne Liste (zeigt auch Drafts) ----------
 /**
@@ -95,17 +55,17 @@ router.get("/", async (req, res) => {
  *                 properties:
  *                   antworttext:
  *                     type: string
- *                   frage_did:
- *                     type: string
- *                   frage_snapshot_hash:
- *                     type: string
  *                   bundesrat_did:
  *                     type: string
  *                   beantwortet_am:
  *                     type: string
  *     responses:
  *       201:
- *         description: Draft erstellt
+ *         description: >
+ *           Draft erstellt. Hinweis: dieser Low-Level-Endpunkt legt nur die
+ *           Antwort an, ohne Case-Verlinkung zu einer Frage. Fuer den
+ *           regulaeren Ablauf (Antwort + Case + Verlinkung in einem Zug)
+ *           siehe POST /api/cases.
  *       400:
  *         description: Unbekannter recordType
  *       422:
@@ -128,11 +88,7 @@ router.post("/", async (req, res) => {
     payload, payloadFormat: "application/json"
   });
 
-  await pool.query(
-    `INSERT INTO records (did, record_type, schema_version, owner, current_snapshot_id)
-     VALUES ($1,$2,$3,$4,$5)`,
-    [did, recordType, snapshot.schema_version, owner, snapshot.id]
-  );
+  await insertRecord({ did, recordType, schemaVersion: snapshot.schema_version, owner, snapshotId: snapshot.id });
 
   res.status(201).json(await getFullRecord(did));
 });
@@ -163,10 +119,6 @@ router.post("/", async (req, res) => {
  *                 type: object
  *                 properties:
  *                   antworttext:
- *                     type: string
- *                   frage_did:
- *                     type: string
- *                   frage_snapshot_hash:
  *                     type: string
  *                   bundesrat_did:
  *                     type: string
@@ -242,8 +194,17 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
     payload: record.payload, payloadFormat: "application/json"
   });
 
-  await pool.query(`UPDATE records SET current_snapshot_id=$1 WHERE did=$2`, [finalizedSnapshot.id, did]);
+  await setCurrentSnapshot(did, finalizedSnapshot.id);
   await logEvent(`Antwort finalisiert: ${did} (Hash: ${finalizedSnapshot.snapshot_hash})`);
+
+  // Falls diese Antwort ueber einen Case per workingLink (RWP 8.4, Soft Link)
+  // referenziert ist: Soft Link durch Hard Link in `result` ersetzen und die
+  // Case-Merkle-Root neu berechnen. Der Case selbst bleibt Draft -- das
+  // Case-Finalisieren ist ein separater Schritt (siehe routes/cases.js).
+  const promoted = await promoteWorkingLinkToHardLink(did, finalizedSnapshot.snapshot_hash);
+  if (promoted) {
+    await logEvent(`Case aktualisiert: ${promoted.caseDid} (Antwort ${did} von workingLinks nach result verschoben)`);
+  }
 
   res.json(await getFullRecord(did));
 });
@@ -298,7 +259,7 @@ router.post(/^\/(.+)\/new-version$/, async (req, res) => {
     correctionReason: correctionReason || null
   });
 
-  await pool.query(`UPDATE records SET current_snapshot_id=$1 WHERE did=$2`, [draftSnapshot.id, did]);
+  await setCurrentSnapshot(did, draftSnapshot.id);
   res.status(201).json(await getFullRecord(did));
 });
 

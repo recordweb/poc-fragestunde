@@ -14,6 +14,9 @@
   .record { border-left: 4px solid #999; padding: 10px; margin: 10px 0; background: #fafafa; border-radius: 4px; }
   .record.draft { border-color: #e0a800; }
   .record.finalized { border-color: #2b8a3e; }
+  .nested { border: 1px solid #e2e2e6; border-radius: 6px; padding: 8px 10px; margin: 8px 0; background: #fff; }
+  .nested.finalized { border-left: 3px solid #2b8a3e; }
+  .nested.draft { border-left: 3px solid #e0a800; }
   .did { font-size: 0.75rem; color: #666; word-break: break-all; }
   .meta-table { width: 100%; font-size: 0.85rem; margin-top: 8px; border-collapse: collapse; }
   .meta-table td { padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: top; word-break: break-all; }
@@ -25,6 +28,7 @@
   .historyBox { margin-top: 8px; padding: 8px 10px; background: #f0f0f2; border-radius: 4px; font-size: 0.8rem; }
   .historyNode { padding: 6px 0; border-bottom: 1px solid #ddd; word-break: break-all; }
   .historyNode:last-child { border-bottom: none; }
+  .badge { display: inline-block; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; background: #eee; color: #444; margin-left: 6px; }
 </style>
 </head>
 <body>
@@ -40,20 +44,23 @@
   <h1>Antwortmanagement — <span id="currentUserLabel"></span></h1>
 
   <div class="card">
-    <h2 id="formTitle">Neue Antwort</h2>
-    <label for="frageSelect">Offene Frage aus der Inbox (noch unbeantwortet)</label>
-    <select id="frageSelect">
-      <option value="">Lädt Fragen aus der Inbox…</option>
-    </select>
-    <div id="frageVorschau" class="did"></div>
+    <h2 id="formTitle">Neuer Case</h2>
+    <div id="frageAuswahlBlock">
+      <label for="frageSelect">Offene Frage aus der Inbox (noch unbeantwortet)</label>
+      <select id="frageSelect">
+        <option value="">Lädt Fragen aus der Inbox…</option>
+      </select>
+      <div id="frageVorschau" class="did"></div>
+    </div>
+    <div id="frageFixiertBlock" class="did hidden"></div>
     <textarea id="antworttext" maxlength="500" rows="4" placeholder="Ihre Antwort (max. 500 Zeichen)"></textarea>
     <button id="saveDraftBtn">Als Draft speichern</button>
     <button id="cancelEditBtn" class="hidden">Abbrechen</button>
   </div>
 
   <div class="card">
-    <h2>Meine Antworten</h2>
-    <div id="recordsList"></div>
+    <h2>Meine Cases</h2>
+    <div id="casesList"></div>
   </div>
 
   <div class="card" id="logsCard" style="display:none;">
@@ -64,37 +71,38 @@
 </div>
 
 <script>
-const API_BASE = "/antwortmanagement/api/records";
+const CASES_API_BASE = "/antwortmanagement/api/cases";
+const RECORDS_API_BASE = "/antwortmanagement/api/records";
 
 const RESOLVER_BASE = "/resolver/bk";
-// Die Frage-Auswahl wird bewusst NICHT mehr direkt beim Fragenmanagement
-// abgefragt, sondern ausschliesslich aus der eigenen LDN-Inbox aufgebaut —
-// das Antwortmanagement kennt eine Frage erst, wenn sie ihm per Notification
+// Die Frage-Auswahl wird bewusst NICHT direkt beim Fragenmanagement abgefragt,
+// sondern ausschliesslich aus der eigenen LDN-Inbox aufgebaut — das
+// Antwortmanagement kennt eine Frage erst, wenn sie ihm per Notification
 // zugestellt wurde.
 const INBOX_API_BASE = "/antwortmanagement/api/inbox";
-
-const RECORD_TYPE_ANTWORT = "did:rwp:b7d4c810:schema:fragestunde-antwort";
 
 const loginView = document.getElementById("loginView");
 const appView = document.getElementById("appView");
 const currentUserLabel = document.getElementById("currentUserLabel");
-const recordsList = document.getElementById("recordsList");
+const casesList = document.getElementById("casesList");
 const formTitle = document.getElementById("formTitle");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
 const saveDraftBtn = document.getElementById("saveDraftBtn");
 const frageSelect = document.getElementById("frageSelect");
 const frageVorschau = document.getElementById("frageVorschau");
+const frageAuswahlBlock = document.getElementById("frageAuswahlBlock");
+const frageFixiertBlock = document.getElementById("frageFixiertBlock");
 
-let editingDid = null;
+// Beim Neuanlegen eines Case wird die Frage frei gewählt. Beim Bearbeiten
+// einer bestehenden Antwort ist die Frage bereits als Case-trigger fixiert
+// (Hard Link auf die finalisierte Frage) — sie kann dann nicht mehr über
+// dieses Formular geändert werden, nur der Antworttext.
+let editingAntwortDid = null;
 
-let lastLoadedRecords = [];
-// finalisierteFragen: nur die noch NICHT mit einer Antwort verknüpften Fragen
-// (das ist die Auswahlliste, die der Benutzer sieht).
-let finalisierteFragen = [];
-// alleEingegangeneFragen: alle je per Inbox empfangenen Fragen, unabhängig davon,
-// ob schon verknüpft — wird u.a. gebraucht, um beim Bearbeiten einer bestehenden
-// Antwort deren eigene (bereits verknüpfte) Frage weiterhin anzeigen zu können.
-let alleEingegangeneFragen = [];
+let lastLoadedCases = [];
+// offeneFragen: nur die noch NICHT mit einem Case verknüpften Fragen (das ist
+// die Auswahlliste, die der Benutzer beim Neuanlegen sieht).
+let offeneFragen = [];
 
 function getCurrentUser() {
   const raw = sessionStorage.getItem("currentUser");
@@ -143,13 +151,9 @@ document.getElementById("logoutBtn").addEventListener("click", logout);
 
 // Die Frage wird ausschliesslich über die LDN-Inbox bekannt — keine lokale
 // Kopie und kein direkter Zugriff auf das Fragenmanagement vom Frontend aus.
-// Die Notification selbst trägt keinen Inhalt mehr (nur "da ist was Neues");
-// das Backend (siehe inbox.js: enrichWithResolvedRecord) löst die DID auf und
-// lädt den Record frisch beim Fragenmanagement nach — hier wird nur noch das
-// Ergebnis dieser Auflösung (`entry.record`) angezeigt. Fragen, die schon mit
-// einer (Draft- oder finalisierten) Antwort verknüpft sind, werden aus der
-// Auswahl ausgeblendet, damit dieselbe Frage nicht zweimal beantwortet werden
-// kann.
+// /offene-fragen filtert bereits serverseitig auf Inbox-Einträge, deren
+// object_did noch nicht als trigger.recordDid in einem Case referenziert wird
+// (siehe inbox.js).
 function inboxEintragZuFrage(entry) {
   const payload = (entry.record && entry.record.payload) || {};
   return {
@@ -162,34 +166,24 @@ function inboxEintragZuFrage(entry) {
   };
 }
 
-async function loadFinalisierteFragen() {
+async function loadOffeneFragen() {
   try {
-    // /offene-fragen filtert bereits serverseitig auf Inbox-Einträge ohne
-    // verknüpfte Antwort; /inbox (unfiltriert) wird zusätzlich geladen, damit
-    // beim Bearbeiten einer bestehenden Antwort deren eigene, schon verknüpfte
-    // Frage weiterhin dargestellt werden kann (siehe startEdit).
-    const [offeneRes, alleRes] = await Promise.all([
-      fetch(`${INBOX_API_BASE}/offene-fragen`),
-      fetch(INBOX_API_BASE)
-    ]);
-    finalisierteFragen = (await offeneRes.json()).map(inboxEintragZuFrage);
-    alleEingegangeneFragen = (await alleRes.json()).map(inboxEintragZuFrage);
+    const res = await fetch(`${INBOX_API_BASE}/offene-fragen`);
+    offeneFragen = (await res.json()).map(inboxEintragZuFrage);
   } catch (err) {
-    finalisierteFragen = [];
-    alleEingegangeneFragen = [];
+    offeneFragen = [];
   }
-
   renderFrageSelect();
 }
 
 function renderFrageSelect() {
   frageSelect.innerHTML = "";
-  if (!finalisierteFragen.length) {
+  if (!offeneFragen.length) {
     frageSelect.innerHTML = '<option value="">Keine offenen Fragen aus der Inbox verfügbar</option>';
     return;
   }
   frageSelect.appendChild(new Option("— Frage wählen —", ""));
-  finalisierteFragen.forEach(f => {
+  offeneFragen.forEach(f => {
     const kurz = f.fragetext.length > 70
       ? f.fragetext.slice(0, 70) + "…"
       : f.fragetext;
@@ -198,7 +192,7 @@ function renderFrageSelect() {
 }
 
 function renderFrageVorschau() {
-  const frage = alleEingegangeneFragen.find(f => f.did === frageSelect.value);
+  const frage = offeneFragen.find(f => f.did === frageSelect.value);
   frageVorschau.innerHTML = frage
     ? `Frage-DID: ${frage.did}<br>Snapshot-Hash: ${frage.snapshot_hash}`
     : "";
@@ -206,87 +200,167 @@ function renderFrageVorschau() {
 
 frageSelect.addEventListener("change", renderFrageVorschau);
 
-async function loadRecords() {
+async function loadCases() {
   const user = getCurrentUser();
   if (!user) return;
-  const res = await fetch(API_BASE);
+  const res = await fetch(CASES_API_BASE);
   const all = await res.json();
-  const mine = user.isAdmin ? all : all.filter(r => r.owner === user.did);
-  renderRecords(mine);
+  const mine = user.isAdmin ? all : all.filter(c => c.owner === user.did);
+  renderCases(mine);
 }
 
 function metaRow(label, value) {
   return `<tr><td>${label}</td><td>${value ?? "–"}</td></tr>`;
 }
 
-function renderRecords(records) {
-  lastLoadedRecords = records;
-  recordsList.innerHTML = "";
-  if (!records.length) {
-    recordsList.innerHTML = "<p>Noch keine Antworten erfasst.</p>";
+function caseMetaTable(c) {
+  return `
+    <table class="meta-table">
+      ${metaRow("caseId (did)", c.did)}
+      ${metaRow("recordType", c.record_type)}
+      ${metaRow("schemaVersion", c.schema_version)}
+      ${metaRow("state", c.state)}
+      ${metaRow("created", c.created)}
+      ${metaRow("finalized", c.finalized)}
+      ${metaRow("owner", c.owner)}
+      ${metaRow("parents", JSON.stringify(c.parents))}
+      ${metaRow("payloadHash", c.payload_hash)}
+      ${metaRow("snapshotHash", c.snapshot_hash)}
+      ${metaRow("merkleRoot", c.payload.merkleRoot)}
+      ${metaRow("signature", c.signature)}
+    </table>
+    <p><strong>Payload:</strong></p>
+    <pre>${JSON.stringify(c.payload, null, 2)}</pre>
+  `;
+}
+
+function antwortMetaTable(a) {
+  return `
+    <table class="meta-table">
+      ${metaRow("did", a.did)}
+      ${metaRow("recordType", a.record_type)}
+      ${metaRow("state", a.state)}
+      ${metaRow("created", a.record_created)}
+      ${metaRow("finalized", a.finalized)}
+      ${metaRow("owner", a.owner)}
+      ${metaRow("parents", JSON.stringify(a.parents))}
+      ${metaRow("payloadHash", a.payload_hash)}
+      ${metaRow("snapshotHash", a.snapshot_hash)}
+      ${metaRow("signature", a.signature)}
+      ${metaRow("correctionReason", a.correction_reason)}
+    </table>
+  `;
+}
+
+function renderFrageDetails(c) {
+  const trigger = c.payload.trigger || {};
+  if (c.resolvedFrage) {
+    const p = c.resolvedFrage.payload || {};
+    return `
+      <p>${p.fragetext || "(kein Fragetext im aufgelösten Record)"}</p>
+      <div class="did">Session: ${p.session || "–"}</div>
+      <div class="did">Frage-DID: ${trigger.recordDid}</div>
+      <div class="did">snapshotHash (Case-trigger): ${trigger.snapshotHash}</div>
+    `;
+  }
+  return `
+    <p><em>Frage aktuell nicht auflösbar (Fragenmanagement nicht erreichbar oder Record nicht mehr gültig).</em></p>
+    <div class="did">Frage-DID: ${trigger.recordDid}</div>
+    <div class="did">snapshotHash (Case-trigger): ${trigger.snapshotHash}</div>
+  `;
+}
+
+function renderAntwortDetails(c) {
+  const a = c.antwort;
+  if (!a) return "<p><em>Keine Antwort verknüpft.</em></p>";
+  const nochOffen = (c.payload.workingLinks || []).some(w => w.recordDid === a.did);
+  return `
+    <div class="nested ${a.state}">
+      <strong>Antwort</strong> — <em>${a.state}</em>
+      ${nochOffen ? '<span class="badge">soft link — noch nicht in Case übernommen</span>' : ""}
+      <p>${a.payload.antworttext}</p>
+      <div class="did">Antwort-DID: ${a.did}</div>
+      ${a.snapshot_hash ? `<div class="did">Hash: ${a.snapshot_hash}</div>` : ""}
+      <div style="margin-top:8px;">
+        ${a.state === "draft" ? `
+          <button class="editAntwortBtn" data-did="${a.did}">Bearbeiten</button>
+          <button class="finalizeAntwortBtn" data-did="${a.did}">Finalisieren</button>
+        ` : ""}
+        ${a.state === "finalized" ? `<button class="newVersionBtn" data-did="${a.did}">Neue Version starten</button>` : ""}
+      </div>
+      <details>
+        <summary>Antwort-Metadaten anzeigen</summary>
+        ${antwortMetaTable(a)}
+      </details>
+    </div>
+  `;
+}
+
+function renderCases(cases) {
+  lastLoadedCases = cases;
+  casesList.innerHTML = "";
+  if (!cases.length) {
+    casesList.innerHTML = "<p>Noch keine Cases erfasst.</p>";
     return;
   }
-  records.forEach(r => {
+  cases.forEach(c => {
+    const bereitZurFinalisierung = c.state === "draft" && (c.payload.workingLinks || []).length === 0 && (c.payload.result || []).length > 0;
     const div = document.createElement("div");
-    div.className = "record " + r.state;
+    div.className = "record " + c.state;
     div.innerHTML = `
-      <strong>Antwort</strong> — <em>${r.state}</em><br>
-      ${r.payload.antworttext}<br>
-      <span class="did">${r.did}</span><br>
-      <span class="did">Frage: ${r.payload.frage_did}</span>
-      ${r.snapshot_hash ? `<br><span class="did">Hash: ${r.snapshot_hash}</span>` : ""}
-      <br>
-      ${r.state === "draft" ? `<button class="editBtn" data-did="${r.did}">Bearbeiten</button>
-        <button class="finalizeBtn" data-did="${r.did}">Finalisieren</button>` : ""}
-      ${r.state === "finalized" ? `<button class="newVersionBtn" data-did="${r.did}">Neue Version starten</button>` : ""}
+      <strong>Case</strong> — <em>${c.state}</em><br>
+      <span class="did">Case-DID: ${c.did}</span>
+
       <details>
-        <summary>Alle Metadaten anzeigen</summary>
-        <table class="meta-table">
-          ${metaRow("did", r.did)}
-          ${metaRow("recordType", r.record_type)}
-          ${metaRow("schemaVersion", r.schema_version)}
-          ${metaRow("state", r.state)}
-          ${metaRow("created", r.created)}
-          ${metaRow("finalized", r.finalized)}
-          ${metaRow("owner", r.owner)}
-          ${metaRow("parents", JSON.stringify(r.parents))}
-          ${metaRow("payloadHash", r.payload_hash)}
-          ${metaRow("payloadFormat", r.payload_format)}
-          ${metaRow("snapshotHash", r.snapshot_hash)}
-          ${metaRow("signature", r.signature)}
-          ${metaRow("correctionReason", r.correction_reason)}
-        </table>
-        <p><strong>Payload:</strong></p>
-        <pre>${JSON.stringify(r.payload, null, 2)}</pre>
+        <summary>Frage anzeigen</summary>
+        ${renderFrageDetails(c)}
       </details>
-      <details class="historyDetails" data-did="${r.did}">
-        <summary>Historie anzeigen</summary>
+
+      <details open>
+        <summary>Antwort</summary>
+        ${renderAntwortDetails(c)}
+      </details>
+
+      ${c.state === "draft" ? `
+        <button class="finalizeCaseBtn" data-did="${c.did}" ${bereitZurFinalisierung ? "" : "disabled"}>
+          Case finalisieren
+        </button>
+        ${!bereitZurFinalisierung ? '<span class="badge">erst möglich, wenn die Antwort finalisiert ist</span>' : ""}
+      ` : ""}
+
+      <details>
+        <summary>Alle Case-Metadaten anzeigen</summary>
+        ${caseMetaTable(c)}
+      </details>
+      <details class="historyDetails" data-did="${c.did}">
+        <summary>Case-Historie anzeigen</summary>
         <div class="historyBox">Lädt…</div>
       </details>
     `;
-    recordsList.appendChild(div);
+    casesList.appendChild(div);
   });
 }
 
-function startEdit(did, records) {
-  const record = records.find(r => r.did === did);
-  if (!record) return;
-  editingDid = did;
-
-  // Die bereits mit diesem Record verknüpfte Frage ist per Definition aus der
-  // regulären Auswahl ausgeblendet (sie gilt ja als "schon beantwortet") —
-  // beim Bearbeiten muss sie trotzdem auswählbar bleiben.
-  const frageDid = record.payload.frage_did;
-  if (!finalisierteFragen.some(f => f.did === frageDid)) {
-    const bestehende = alleEingegangeneFragen.find(f => f.did === frageDid);
-    const label = bestehende
-      ? `${bestehende.session} — ${bestehende.fragetext.slice(0, 70)}`
-      : `(verknüpfte Frage) ${frageDid}`;
-    frageSelect.appendChild(new Option(label, frageDid));
+function findAntwortInCases(antwortDid) {
+  for (const c of lastLoadedCases) {
+    if (c.antwort && c.antwort.did === antwortDid) return { caseRecord: c, antwort: c.antwort };
   }
-  frageSelect.value = frageDid;
-  renderFrageVorschau();
-  document.getElementById("antworttext").value = record.payload.antworttext;
+  return null;
+}
+
+function startEditAntwort(antwortDid) {
+  const found = findAntwortInCases(antwortDid);
+  if (!found) return;
+  editingAntwortDid = antwortDid;
+
+  // Die Frage ist über den Case bereits fest verlinkt (trigger, Hard Link)
+  // und kann beim Bearbeiten der Antwort nicht mehr geändert werden — nur der
+  // Antworttext selbst ist editierbar.
+  frageAuswahlBlock.classList.add("hidden");
+  frageFixiertBlock.classList.remove("hidden");
+  frageFixiertBlock.innerHTML = `Verknüpfte Frage (fix, Teil des Case): ${found.caseRecord.payload.trigger.recordDid}`;
+
+  document.getElementById("antworttext").value = found.antwort.payload.antworttext;
   formTitle.textContent = "Antwort bearbeiten";
   saveDraftBtn.textContent = "Änderungen speichern";
   cancelEditBtn.classList.remove("hidden");
@@ -294,31 +368,44 @@ function startEdit(did, records) {
 }
 
 function cancelEdit() {
-  editingDid = null;
+  editingAntwortDid = null;
   document.getElementById("antworttext").value = "";
-  renderFrageSelect(); // baut die Liste neu auf und entfernt die temporär für die Bearbeitung ergänzte Option
+  frageAuswahlBlock.classList.remove("hidden");
+  frageFixiertBlock.classList.add("hidden");
   frageSelect.value = "";
   renderFrageVorschau();
-  formTitle.textContent = "Neue Antwort";
+  formTitle.textContent = "Neuer Case";
   saveDraftBtn.textContent = "Als Draft speichern";
   cancelEditBtn.classList.add("hidden");
 }
 
 cancelEditBtn.addEventListener("click", cancelEdit);
 
-async function finalizeRecord(did) {
+async function finalizeAntwort(did) {
   const ok = confirm(
-    "Dieser Vorgang finalisiert Ihre Antwort unwiderruflich. Der Record erhält eine permanente DID und einen kryptographischen Snapshot-Hash."
+    "Dieser Vorgang finalisiert die Antwort unwiderruflich. Der zugehörige Case übernimmt die Antwort danach automatisch als Ergebnis (result) und kann anschliessend finalisiert werden."
   );
   if (!ok) return;
-  await fetch(`${API_BASE}/${encodeURIComponent(did)}/finalize`, { method: "PUT" });
-  loadRecords();
-  loadFinalisierteFragen();
+  await fetch(`${RECORDS_API_BASE}/${encodeURIComponent(did)}/finalize`, { method: "PUT" });
+  loadCases();
+  loadOffeneFragen();
+}
+
+async function finalizeCase(did) {
+  const ok = confirm("Diesen Case unwiderruflich finalisieren?");
+  if (!ok) return;
+  const res = await fetch(`${CASES_API_BASE}/${encodeURIComponent(did)}/finalize`, { method: "PUT" });
+  if (!res.ok) {
+    const err = await res.json();
+    alert("Fehler: " + (err.error || JSON.stringify(err)));
+    return;
+  }
+  loadCases();
 }
 
 async function startNewVersion(did) {
   const reason = prompt("Grund für die neue Version (optional):", "");
-  const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/new-version`, {
+  const res = await fetch(`${RECORDS_API_BASE}/${encodeURIComponent(did)}/new-version`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ correctionReason: reason || null })
@@ -328,44 +415,46 @@ async function startNewVersion(did) {
     alert("Fehler: " + err.error);
     return;
   }
-  loadRecords();
-  loadFinalisierteFragen();
+  loadCases();
+  loadOffeneFragen();
 }
 
 saveDraftBtn.addEventListener("click", async () => {
   const user = getCurrentUser();
   const antworttext = document.getElementById("antworttext").value.trim();
-  const frage = alleEingegangeneFragen.find(f => f.did === frageSelect.value);
 
-  if (!frage) {
-    alert("Bitte eine finalisierte Frage auswählen.");
-    return;
-  }
   if (!antworttext) {
     alert("Bitte einen Antworttext eingeben.");
     return;
   }
 
-  const payload = {
-    antworttext,
-    frage_did: frage.did,
-    frage_snapshot_hash: frage.snapshot_hash,
-    bundesrat_did: user.did,
-    beantwortet_am: new Date().toISOString()
-  };
-
   let res;
-  if (editingDid) {
-    res = await fetch(`${API_BASE}/${encodeURIComponent(editingDid)}`, {
+  if (editingAntwortDid) {
+    const payload = {
+      antworttext,
+      bundesrat_did: user.did,
+      beantwortet_am: new Date().toISOString()
+    };
+    res = await fetch(`${RECORDS_API_BASE}/${encodeURIComponent(editingAntwortDid)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ payload })
     });
   } else {
-    res = await fetch(API_BASE, {
+    const frage = offeneFragen.find(f => f.did === frageSelect.value);
+    if (!frage) {
+      alert("Bitte eine offene Frage auswählen.");
+      return;
+    }
+    res = await fetch(CASES_API_BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recordType: RECORD_TYPE_ANTWORT, owner: user.did, payload })
+      body: JSON.stringify({
+        owner: user.did,
+        antworttext,
+        frage_did: frage.did,
+        frage_snapshot_hash: frage.snapshot_hash
+      })
     });
   }
 
@@ -376,23 +465,26 @@ saveDraftBtn.addEventListener("click", async () => {
   }
 
   cancelEdit();
-  loadRecords();
-  loadFinalisierteFragen();
+  loadCases();
+  loadOffeneFragen();
 });
 
-recordsList.addEventListener("click", (e) => {
-  if (e.target.classList.contains("finalizeBtn")) {
-    finalizeRecord(e.target.dataset.did);
+casesList.addEventListener("click", (e) => {
+  if (e.target.classList.contains("finalizeAntwortBtn")) {
+    finalizeAntwort(e.target.dataset.did);
+  }
+  if (e.target.classList.contains("finalizeCaseBtn")) {
+    finalizeCase(e.target.dataset.did);
   }
   if (e.target.classList.contains("newVersionBtn")) {
     startNewVersion(e.target.dataset.did);
   }
-  if (e.target.classList.contains("editBtn")) {
-    startEdit(e.target.dataset.did, lastLoadedRecords);
+  if (e.target.classList.contains("editAntwortBtn")) {
+    startEditAntwort(e.target.dataset.did);
   }
 });
 
-recordsList.addEventListener("toggle", async (e) => {
+casesList.addEventListener("toggle", async (e) => {
   if (!e.target.classList.contains("historyDetails")) return;
   if (!e.target.open) return;
 
@@ -400,7 +492,7 @@ recordsList.addEventListener("toggle", async (e) => {
   const box = e.target.querySelector(".historyBox");
   box.textContent = "Lädt…";
 
-  const res = await fetch(`${API_BASE}/${encodeURIComponent(did)}/history`);
+  const res = await fetch(`${CASES_API_BASE.replace("/cases", "/records")}/${encodeURIComponent(did)}/history`);
   const history = await res.json();
 
   box.innerHTML = `
@@ -433,8 +525,8 @@ function renderApp() {
     loginView.classList.add("hidden");
     appView.classList.remove("hidden");
     currentUserLabel.textContent = user.label;
-    loadFinalisierteFragen();
-    loadRecords();
+    loadOffeneFragen();
+    loadCases();
   } else {
     loginView.classList.remove("hidden");
     appView.classList.add("hidden");

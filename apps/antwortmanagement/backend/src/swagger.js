@@ -13,6 +13,7 @@ const options = {
     ],
     tags: [
       { name: "Records", description: "Fragestunde-Antwort Records" },
+      { name: "Cases", description: "Fragestunde-Case Records (RWP CaseRecord, Kapitel 8) — verlinken Frage und Antwort" },
       { name: "DID", description: "DID-Resolver" },
       { name: "LDN", description: "W3C Linked Data Notifications Inbox" }
     ]

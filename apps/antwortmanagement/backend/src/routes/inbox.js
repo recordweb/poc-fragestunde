@@ -2,6 +2,7 @@ import express from "express";
 import pool from "../db.js";
 import { logEvent } from "../logger.js";
 import { resolveRecord } from "../resolveRecord.js";
+import { RECORD_TYPE_CASE } from "../schemas.js";
 
 const router = express.Router();
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
@@ -125,17 +126,18 @@ router.get("/", async (req, res) => {
  *     summary: Über die Inbox empfangene Fragen, die noch keine Antwort haben
  *     description: >
  *       Liefert je Frage (object_did) den neuesten Inbox-Eintrag, gefiltert auf
- *       solche, deren object_did noch nicht als frage_did in einem bestehenden
- *       Antwort-Record (Draft oder finalisiert) referenziert wird. Ersetzt den
- *       früheren direkten Zugriff des Antwortmanagement-Frontends auf die
- *       Fragenmanagement-API — die Fragenauswahl kennt nur, was per LDN
- *       tatsächlich zugestellt wurde.
+ *       solche, deren object_did noch nicht als trigger.recordDid in einem
+ *       bestehenden Fragestunde-Case (Draft oder finalisiert) referenziert
+ *       wird. Ersetzt den früheren direkten Zugriff des
+ *       Antwortmanagement-Frontends auf die Fragenmanagement-API — die
+ *       Fragenauswahl kennt nur, was per LDN tatsächlich zugestellt wurde.
  *     responses:
  *       200:
  *         description: Liste offener (noch unbeantworteter) Fragen, neueste zuerst
  */
 router.get("/offene-fragen", async (req, res) => {
-  const { rows } = await pool.query(`
+  const { rows } = await pool.query(
+    `
     SELECT * FROM (
       SELECT DISTINCT ON (i.object_did)
              i.id, i.notification_id, i.actor, i.target, i.object_did, i.received, i.payload
@@ -143,13 +145,16 @@ router.get("/offene-fragen", async (req, res) => {
       WHERE NOT EXISTS (
         SELECT 1 FROM records r
         JOIN record_snapshots s ON s.id = r.current_snapshot_id
-        WHERE s.payload->>'frage_did' = i.object_did
+        WHERE r.record_type = $1
+          AND s.payload->'trigger'->>'recordDid' = i.object_did
       )
       ORDER BY i.object_did, i.received DESC
     ) offene
     ORDER BY received DESC
     LIMIT 200
-  `);
+  `,
+    [RECORD_TYPE_CASE]
+  );
   const enriched = await enrichWithResolvedRecord(rows);
   // Nur anzeigen, was sich gerade tatsächlich auflösen lässt — die
   // Notification allein (dünner Hinweis) reicht nicht als Nachweis, dass die

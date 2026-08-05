@@ -102,12 +102,22 @@ Zustand: `draft` → `finalized`
 
 Das **Fragenmanagement** deckt Phase 1 sowie die Solid-Pod-Verlinkung aus Phase 5 ab.
 
-Das **Antwortmanagement** befindet sich im Basisausbau: Login über den Resolver der
-Bundeskanzlei und der Antwort-Lebenszyklus (Draft → Finalized) inklusive Versionierung.
-Die Frage wird dabei via DID direkt aus dem Fragenmanagement gelesen und nur über
-`frage_did` und `frage_snapshot_hash` referenziert. Das **Case-Konzept** (Phase 2), der
-**Nachweis-Record** und der **Case-Abschluss** (Phase 4) sowie die **LDN-Inbox** sind
-noch nicht implementiert.
+Das **Antwortmanagement** deckt Login über den Resolver der Bundeskanzlei, die
+LDN-Inbox (Phase 1 Notify), das **Case-Konzept** (Phase 2/3, RWP `CaseRecord`,
+Kapitel 8) sowie den Antwort-Lebenszyklus (Draft → Finalized inkl. Versionierung) ab.
+Ein Case verlinkt Frage (`trigger`, Hard Link) und Antwort (`result`, Hard Link) gemäss
+RWP Annex A.2; solange die Antwort noch Draft ist, hält eine PoC-Erweiterung
+(`workingLinks`, nicht Teil des normativen Schemas) den entsprechenden Soft Link. Die
+Frage selbst wird dabei nicht kopiert, sondern beim Anzeigen jeweils per DID beim
+Fragenmanagement aufgelöst. Der Case kennt kein eigenes „Bearbeiten“ — nur die
+Verlinkung wird nachgeführt (automatisch bei Antwort-Finalisierung) und der Case selbst
+wird abschliessend finalisiert, sobald keine offenen Soft Links mehr bestehen. Der
+**Nachweis-Record** und die **Departements-Zuweisung** (Phase 4, als zusätzliches
+`result`- bzw. `process`-Element vorgesehen) sind noch nicht implementiert. Ebenfalls
+noch nicht abgedeckt: Korrektur/Neuversionierung eines bereits finalisierten Case,
+wenn seine verlinkte Antwort nachträglich neu versioniert wird — der bestehende
+Hard Link im Case bleibt dann auf den ursprünglichen (jetzt u.U. überholten)
+Snapshot-Hash verweisen.
 
 ---
 
