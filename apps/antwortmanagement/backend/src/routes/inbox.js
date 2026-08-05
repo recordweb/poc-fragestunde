@@ -1,9 +1,30 @@
 import express from "express";
 import pool from "../db.js";
 import { logEvent } from "../logger.js";
+import { resolveRecord } from "../resolveRecord.js";
 
 const router = express.Router();
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
+
+// Reichert Inbox-Zeilen um den tatsächlich beim Fragenmanagement aufgelösten
+// Record an (Feld `record`, null wenn nicht auflösbar). Die Notification
+// selbst (`payload`) bleibt zusätzlich sichtbar — bewusst als Kontrast: sie
+// zeigt nur den dünnen Hinweis, `record` zeigt den tatsächlich verifizierten
+// Inhalt, frisch von der Quelle. Dedupliziert Resolve-Aufrufe pro Request,
+// falls mehrere Zeilen dieselbe object_did referenzieren.
+async function enrichWithResolvedRecord(rows) {
+  const cache = new Map();
+  const resolveCached = (did) => {
+    if (!cache.has(did)) cache.set(did, resolveRecord(did));
+    return cache.get(did);
+  };
+  return Promise.all(
+    rows.map(async (row) => ({
+      ...row,
+      record: await resolveCached(row.object_did)
+    }))
+  );
+}
 
 // ---------- Validierung ----------
 // Prüft nur die für LDN/ActivityStreams zwingenden Felder — keine Signatur-
@@ -92,7 +113,7 @@ router.get("/", async (req, res) => {
     `SELECT id, notification_id, actor, target, object_did, received, payload
      FROM ldn_inbox ORDER BY received DESC LIMIT 100`
   );
-  res.json(rows);
+  res.json(await enrichWithResolvedRecord(rows));
 });
 
 // ---------- GET /inbox/offene-fragen — Fragen ohne Antwort ----------
@@ -129,7 +150,11 @@ router.get("/offene-fragen", async (req, res) => {
     ORDER BY received DESC
     LIMIT 200
   `);
-  res.json(rows);
+  const enriched = await enrichWithResolvedRecord(rows);
+  // Nur anzeigen, was sich gerade tatsächlich auflösen lässt — die
+  // Notification allein (dünner Hinweis) reicht nicht als Nachweis, dass die
+  // Frage wirklich existiert und finalisiert ist.
+  res.json(enriched.filter((entry) => entry.record));
 });
 
 // ---------- GET /inbox/:id — Einzelne Notification ----------
