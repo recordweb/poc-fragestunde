@@ -4,6 +4,13 @@ import { enqueueAndAttempt } from "./outbox.js";
 const ACTOR = "did:rwp:a3f9e21c:system/rwp-node";
 const TARGET = "did:rwp:b7d4c810:system/rwp-node"; // Antwortmanagement, laut README
 
+// Die Notification trägt bewusst keinen Inhalt (kein Fragetext, keine Session,
+// kein Owner, kein Hash) — sie ist nur ein Hinweis "hey, da ist was Neues",
+// kein Inhaltskanal. Jedes empfangende System (hier: Antwortmanagement) löst
+// die DID selbst auf und lädt den Record direkt beim Fragenmanagement nach
+// (siehe apps/antwortmanagement/backend/src/resolveRecord.js). Das entspricht
+// dem RWC-Grundsatz "Vollständigkeit wird nicht vertraut, sondern bewiesen"
+// und der Diskussion zu RWP-Issue #6 (Notifications sind nicht-autoritativ).
 export function buildLdnNotification(record) {
   return {
     "@context": [
@@ -17,18 +24,7 @@ export function buildLdnNotification(record) {
     target: TARGET,
     object: {
       id: record.did,
-      type: "rwp:FinalizedRecord",
-      "rwp:snapshotHash": record.snapshot_hash,
-      "rwp:recordType": record.record_type,
-      "rwp:state": "finalized",
-      "rwp:owner": record.owner,
-      // Fragetext/Session werden mitgeschickt, damit das Antwortmanagement
-      // seine Auswahlliste rein aus der Inbox aufbauen kann, ohne die
-      // Frage per direktem API-Call beim Fragenmanagement nachzuladen
-      // (siehe Etappe "Antwortmanagement liest nur noch aus der Inbox").
-      "rwp:fragetext": record.payload.fragetext,
-      "rwp:session": record.payload.session,
-      summary: `Neue finalisierte Fragestunde-Frage von ${record.owner} — ${record.payload.session}`
+      type: "rwp:FinalizedRecord"
     }
   };
 }
