@@ -117,14 +117,21 @@ Das Fragenmanagement wird die Ziel-Inbox zusätzlich explizit über die Env-Vari
 ### Antwortmanagement liest Fragen nur noch aus der Inbox (Etappe 4b — umgesetzt)
 
 - Die Fragenauswahl im Antwortmanagement-Frontend rief bisher direkt `GET /fragenmanagement/api/records` auf — ein direkter Zugriff auf die Datenbasis des anderen Bounded Context, am eigentlichen LDN-Fluss vorbei.
-- Die Notification (`buildLdnNotification()` im Fragenmanagement) trägt neu `rwp:fragetext` und `rwp:session` im `object`, damit die Auswahlliste ohne Rückgriff auf das Fragenmanagement dargestellt werden kann.
 - `GET /antwortmanagement/api/inbox/offene-fragen` (neu) liefert nur Inbox-Einträge, deren `object_did` **noch nicht** als `frage_did` in einem bestehenden Antwort-Record (Draft oder finalisiert) vorkommt — dedupliziert nach `object_did` (neuester Eintrag gewinnt), sortiert nach Empfangsdatum.
 - Effekt: Wird versucht, dieselbe Frage doppelt zu beantworten, taucht sie nach dem ersten Draft nicht mehr in der Auswahl auf; wird eine falsche Inbox-Adresse konfiguriert (Etappe 4), erscheinen neue Fragen im Antwortmanagement erst gar nicht, was den Fehlerfall in der Demo sichtbar macht.
 - Beim Bearbeiten (`startEdit`) einer bereits verknüpften Antwort wird deren Frage weiterhin angezeigt (aus dem lokalen Cache aller je empfangenen Fragen), damit die bestehende Verknüpfung sichtbar bleibt, auch wenn sie nicht mehr Teil der offenen Auswahl ist.
 
-### Authentifizierung (Etappe 5 — in Arbeit)
+### Notification ohne Inhalt — "da ist was Neues", nicht "hier ist der Inhalt" (umgesetzt)
 
-- Notifications werden per HMAC-SHA256 (Shared Secret `LDN_SHARED_SECRET`) signiert; das Antwortmanagement weist unsignierte oder ungültig signierte POSTs mit 401 zurück (Etappe 5)
+- `buildLdnNotification()` im Fragenmanagement (`ldn.js`) trägt **nur noch** `object.id` (die Record-DID) und `object.type` — kein Fragetext, keine Session, kein Owner, kein Snapshot-Hash. Die Notification ist bewusst ein reiner, nicht-autoritativer Hinweis, kein Inhaltskanal.
+- Das Antwortmanagement löst die DID bei jedem Zugriff auf `GET /inbox` bzw. `GET /inbox/offene-fragen` selbst auf (`resolveRecord.js`): erst `GET /fragenmanagement/did/{did}` (DID-Dokument, liefert `recordEndpoint`), dann `GET` auf diesem `recordEndpoint` — genau der Weg, den auch ein beliebiger Dritter ohne Sonderwissen über die Fragenmanagement-internen Strukturen gehen müsste. Beide Aufrufe laufen über `PUBLIC_BASE_URL`, nicht über das interne Docker-Netz, um diesen Punkt auch technisch nicht zu verwässern.
+- Die Antwort dieser Endpunkte enthält zusätzlich zum Original-`payload` (der dünnen Notification) das frisch aufgelöste Feld `record` (der tatsächliche, aktuelle Record) bzw. `null`, wenn er gerade nicht auflösbar ist (z. B. Fragenmanagement nicht erreichbar oder Record nicht mehr finalisiert). `offene-fragen` zeigt nur Einträge mit erfolgreich aufgelöstem `record`.
+- Damit setzt der PoC das im README als "im Scope" formulierte Prinzip ("Antwortmanagement liest die Frage via DID direkt aus dem Fragenmanagement, keine lokale Kopie") tatsächlich um, statt es durch mitgeschickte Notification-Inhalte zu unterlaufen. Entspricht dem RWC-Grundsatz "Vollständigkeit wird nicht vertraut, sondern bewiesen" — siehe auch die Diskussion in einem Kommentar zu [RWP-Issue #6](https://github.com/recordweb/rwp/issues/6).
+
+### Authentifizierung / Herkunft der Notification (bewusst nicht umgesetzt)
+
+- Weder RWP noch RWC treffen eine Aussage darüber, wie ein empfangendes System die Herkunft einer Delivery-Notification (z. B. eines LDN-POSTs) authentifiziert — anders als bei der (in RWP tatsächlich spezifizierten, hier im PoC aber noch als Platzhalter umgesetzten) Record-Owner-Signatur. Das wurde bewusst diskutiert und **nicht** als Spezifikations-Lücke eingestuft, die RWP schliessen sollte: Es ist eine Betriebs-/Deployment-Frage (vgl. RWPs expliziter Verzicht auf ein verbindliches Autorisierungsmodell), und der oben beschriebene Resolve-on-Read-Mechanismus macht die Frage weitgehend irrelevant — eine gefälschte oder falsch zugeordnete Notification führt höchstens zu unnötiger, aber folgenloser Auflösungsarbeit, nie zu einem falsch vertrauten Inhalt.
+- Ursprünglich als "Etappe 5" mit HMAC-SHA256-Signierung der Notification geplant — bewusst verworfen, da ohne Grundlage in RWP/RWC und durch den Resolve-on-Read-Mechanismus in ihrer Schutzwirkung weitgehend redundant.
 
 ## Status
 

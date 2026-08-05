@@ -142,18 +142,23 @@ async function loadPersonsFromResolver() {
 document.getElementById("logoutBtn").addEventListener("click", logout);
 
 // Die Frage wird ausschliesslich über die LDN-Inbox bekannt — keine lokale
-// Kopie und kein direkter Zugriff auf das Fragenmanagement. Fragen, die schon
-// mit einer (Draft- oder finalisierten) Antwort verknüpft sind, werden aus
-// der Auswahl ausgeblendet, damit dieselbe Frage nicht zweimal beantwortet
-// werden kann.
+// Kopie und kein direkter Zugriff auf das Fragenmanagement vom Frontend aus.
+// Die Notification selbst trägt keinen Inhalt mehr (nur "da ist was Neues");
+// das Backend (siehe inbox.js: enrichWithResolvedRecord) löst die DID auf und
+// lädt den Record frisch beim Fragenmanagement nach — hier wird nur noch das
+// Ergebnis dieser Auflösung (`entry.record`) angezeigt. Fragen, die schon mit
+// einer (Draft- oder finalisierten) Antwort verknüpft sind, werden aus der
+// Auswahl ausgeblendet, damit dieselbe Frage nicht zweimal beantwortet werden
+// kann.
 function inboxEintragZuFrage(entry) {
-  const obj = (entry.payload && entry.payload.object) || {};
+  const payload = (entry.record && entry.record.payload) || {};
   return {
     did: entry.object_did,
-    snapshot_hash: obj["rwp:snapshotHash"],
-    fragetext: obj["rwp:fragetext"] || obj.summary || "(kein Fragetext in der Notification enthalten)",
-    session: obj["rwp:session"] || "",
-    received: entry.received
+    snapshot_hash: entry.record ? entry.record.snapshot_hash : undefined,
+    fragetext: payload.fragetext || "(Frage aktuell nicht auflösbar — Fragenmanagement nicht erreichbar oder Record nicht mehr finalisiert)",
+    session: payload.session || "",
+    received: entry.received,
+    resolved: Boolean(entry.record)
   };
 }
 

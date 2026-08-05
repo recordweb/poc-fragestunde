@@ -212,6 +212,11 @@ poc-fragestunde/
 - Vollständige, produktionsreife Zugriffskontrolle
 - Verhalten bei Reorganisation, Merger oder Split von Namespaces 
   (siehe offene Designfragen in RWP, Kapitel 12)
+- Kryptographische Authentifizierung der LDN-Notification/des sendenden 
+  Systems selbst — bewusst weder in RWP/RWC noch in diesem PoC geregelt. 
+  Notifications sind bewusst nicht-autoritative Hinweise ohne Inhalt ("da 
+  ist was Neues"); jedes empfangende System löst den referenzierten Record 
+  ohnehin selbst über die DID auf, siehe `INTERFACES.md`.
 
 ### Verwendete externe Services
 
