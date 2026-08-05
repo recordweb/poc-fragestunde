@@ -10,6 +10,36 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
 
 ---
 
+## Architekturskizze
+```mermaid
+flowchart TB
+    subgraph PARLAMENT["Parlamentsdienste — did:rwp:a3f9e21c"]
+        FM["Fragenmanagement<br/>Records: Fragestunde-Frage<br/>draft → finalized"]
+        RES_P["Resolver Parlament<br/>a3f9e21c, f2c81e05, c6cdee0b"]
+        FM -->|"DID registrieren"| RES_P
+    end
+
+    subgraph BK["Bundeskanzlei — did:rwp:b7d4c810"]
+        AM["Antwortmanagement<br/>Records: Case, Antwort, Nachweis<br/>liest Frage via DID — keine Kopie"]
+        RES_BK["Resolver BK<br/>b7d4c810"]
+        AM -->|"DID registrieren"| RES_BK
+    end
+
+    subgraph ROOT["Root-Resolver Testnet — Hyperledger Fabric"]
+        CHAIN["Channel: root-resolver<br/>Chaincode: namespace-registry"]
+        CHAIN -->|"Registry-Eintrag"| REG["a3f9e21c → resolver/parlament<br/>b7d4c810 → resolver/bk"]
+    end
+
+    FM -->|"LDN Notification<br/>bei Finalisierung der Frage"| AM
+    AM -.->|"1. DID extrahieren<br/>2. Root-Resolver fragen<br/>3. resolverEndpoint erhalten"| ROOT
+    AM -->|"4. DID-Dokument abrufen"| RES_P
+    AM -->|"5. Record über recordEndpoint lesen"| FM
+
+    style PARLAMENT fill:#e3f2fd,stroke:#1565c0
+    style BK fill:#e8f5e9,stroke:#2e7d32
+    style ROOT fill:#fff3e0,stroke:#e65100
+```
+
 ## Szenario
 
 ### Beteiligte Akteure
@@ -51,6 +81,47 @@ Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht u
 │ Journalist Lukas Meier abonniert Cases          │  
 └──────────────────────┬──────────────────────────┘  
 
+```mermaid
+flowchart TB
+    subgraph VPS["VPS — vps.recordweb.dev"]
+        subgraph POCNET["poc_network (external)"]
+            NGINX["poc-nginx<br/>:80/:443 → vps.recordweb.dev"]
+            API["poc-api<br/>Fragenmanagement Backend"]
+            AAPI["poc-antwort-api<br/>Antwortmanagement Backend"]
+            DB["poc-db<br/>PostgreSQL 16"]
+            RP["poc-resolver-parlament<br/>/resolver/parlament/1.0/"]
+            RB["poc-resolver-bk<br/>/resolver/bk/1.0/"]
+
+            NGINX --> API
+            NGINX --> AAPI
+            NGINX --> RP
+            NGINX --> RB
+            API --> DB
+            AAPI --> DB
+        end
+
+        subgraph FABNET["fabric_net"]
+            ORD["orderer.orderer.recordweb.dev<br/>:7050 gRPC / :7053 admin"]
+            PRW["peer0.recordweb.org<br/>:7051 — RecordWebOrgMSP"]
+            PSG["peer0.swissgov.recordweb.dev<br/>:9051 — SwissGovOrgMSP"]
+            CLI["fabric-cli<br/>Admin-Tool"]
+            ADMIN["admin-app<br/>:3000 — Registry verwalten"]
+            DEMO["root-resolver-demo<br/>:3000 — DID auflösen (RecordFinder)"]
+
+            PRW <-->|"Channel root-resolver"| ORD
+            PSG <-->|"Channel root-resolver"| ORD
+            CLI --> PRW
+            ADMIN -->|"Fabric Gateway SDK"| PRW
+            DEMO -->|"Fabric Gateway SDK"| PRW
+        end
+
+        ADMIN -.->|"tritt poc_network bei"| POCNET
+        DEMO -.->|"tritt poc_network bei"| POCNET
+    end
+
+    style POCNET fill:#e3f2fd,stroke:#1565c0
+    style FABNET fill:#fff3e0,stroke:#e65100
+```
 
 ---
 
@@ -97,6 +168,48 @@ Zustand: `draft` → `finalized`
 ### Phase 5 — Solid Wallet (optional, Parlamentarierin)
 
 18. Bernasconi kann die finalisierte Frage und die erhaltene Antwort in ihr **Solid Pod** verlinken — als persönlicher `Fragestunden-Case` in ihrem eigenen Namensraum. Keine Inhaltskopie — nur kryptographisch gesicherte Pointer auf die Records.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor MB as Nationalrätin Bernasconi
+    participant FM as Fragenmanagement<br/>(poc-api)
+    participant RP as Resolver Parlament
+    participant RR as Root-Resolver<br/>(Fabric / root-resolver-demo)
+    participant RB as Resolver BK
+    participant AM as Antwortmanagement<br/>(poc-antwort-api)
+    actor DW as Mitarbeiter Wyss
+    actor SH as Bundesrätin Huber
+
+    Note over MB,SH: Phase 1 — Frage stellen
+    MB->>FM: Frage erfassen (draft)
+    MB->>FM: Frage finalisieren
+    Note right of FM: snapshotHash berechnet<br/>Record unveränderlich
+    FM->>RP: DID registrieren
+    FM->>AM: LDN Notification (Frage finalisiert)
+
+    Note over MB,SH: Phase 2 — Case eröffnen
+    DW->>AM: Inbox prüfen, Case erstellen
+    AM->>RR: did:rwp:a3f9e21c:... — welcher Resolver?
+    RR-->>AM: resolverEndpoint = /resolver/parlament/1.0/
+    AM->>RP: GET /identifiers/{did}
+    RP-->>AM: DID-Dokument (recordEndpoint)
+    AM->>FM: GET recordEndpoint (Frage lesen)
+    Note right of AM: Keine lokale Kopie der Frage
+    DW->>AM: Case dem Departement EJPD zuweisen
+
+    Note over MB,SH: Phase 3 — Antwort verfassen
+    SH->>AM: Case öffnen, Frage via DID lesen
+    SH->>AM: Antwort verfassen (draft)
+    SH->>AM: Antwort finalisieren
+    Note right of AM: snapshotHash berechnet<br/>Antwort unveränderlich
+
+    Note over MB,SH: Phase 4 — Nachweis und Abschluss
+    DW->>AM: Nachweis-Record erstellen
+    DW->>AM: Nachweis finalisieren
+    DW->>AM: Case abschliessen
+    Note right of AM: Merkle-Root über alle<br/>verlinkten Records berechnet
+```
 
 ### Implementierungsstand
 
