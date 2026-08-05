@@ -3,6 +3,7 @@ import cors from "cors";
 import pool from "./db.js";
 import { initSchema } from "./db.js";
 import recordsRouter from "./routes/records.js";
+import casesRouter from "./routes/cases.js";
 import didRouter from "./routes/did.js";
 import inboxRouter from "./routes/inbox.js";
 import swaggerUi from "swagger-ui-express";
@@ -36,6 +37,8 @@ app.get("/antwortmanagement/api/logs", async (req, res) => {
 });
 
 app.use("/antwortmanagement/api/records", recordsRouter);
+
+app.use("/antwortmanagement/api/cases", casesRouter);
 
 app.use("/antwortmanagement/api/inbox", inboxRouter);
 

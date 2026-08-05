@@ -3,65 +3,113 @@
   "rwpSchemaVersion": "0.0.1",
   "schemaId": "did:rwp:bk.admin.ch/schema/fragestunde-case",
   "displayName": "Fragestunde — Case",
-  "description": "Case-Record im Antwortmanagement. Verlinkt Frage, Antwort und Vortragungsnachweis. Kann erst geschlossen werden, wenn Antwort und Nachweis finalisiert sind.",
-  "allowedStates": ["open", "in_bearbeitung", "antwort_verfasst", "closed"],
+  "description": "Case-Record gemaess RWP Kapitel 8 (CaseRecord, Annex A.2). Verlinkt die parlamentarische Frage (trigger) mit der Antwort (result) ueber Hard Links auf finalisierte Snapshots. context/process/decision bleiben in diesem PoC-Stand ungenutzt (denkbare spaetere Ausbaustufen: Departementszuweisung als process-Eintrag, Vortragungsnachweis als weiteres result-Element oder decision). Kein eigenes 'Bearbeiten' des Case selbst -- nur die verlinkte Antwort wird bearbeitet, der Case wird ausschliesslich neu verlinkt und finalisiert.",
+  "allowedStates": ["draft", "finalized"],
   "stateTransitions": [
-    { "from": "open", "to": "in_bearbeitung" },
-    { "from": "in_bearbeitung", "to": "antwort_verfasst", "condition": "antwort_did gesetzt und antwort finalized" },
-    { "from": "antwort_verfasst", "to": "closed", "condition": "nachweis_did gesetzt und nachweis finalized", "requiresOwnerSignature": true }
+    {
+      "from": "draft",
+      "to": "finalized",
+      "condition": "result enthaelt mindestens einen Hard Link (verlinkte Antwort ist finalisiert) und workingLinks ist leer (RWP 8.4: keine offenen Soft Links bei Finalisierung)",
+      "requiresOwnerSignature": true
+    }
   ],
   "payloadFormats": {
-    "open": ["application/json"],
-    "in_bearbeitung": ["application/json"],
-    "antwort_verfasst": ["application/json"],
-    "closed": ["application/json"]
+    "draft": ["application/json"],
+    "finalized": ["application/json"]
   },
   "type": "object",
-  "required": ["frage_did", "frage_snapshot_hash", "departement", "sachbearbeiter_did", "eroeffnet_am"],
+  "required": ["caseId", "caseType", "title", "trigger", "merkleRoot"],
   "properties": {
-    "frage_did": {
+    "caseId": {
       "type": "string",
       "pattern": "^did:rwp:",
-      "description": "DID der Frage — wird via DID gelesen, keine lokale Kopie."
+      "description": "DID dieses Case-Records selbst (RWP Annex A.2 -- Selbstreferenz im Payload)."
     },
-    "frage_snapshot_hash": {
+    "caseType": {
       "type": "string",
-      "pattern": "^sha256:"
+      "pattern": "^did:rwp:",
+      "description": "Schema-DID dieses Case-Typs."
     },
-    "departement": {
+    "title": {
       "type": "string",
-      "enum": ["EDA", "EDI", "EJPD", "VBS", "EFD", "WBF", "UVEK", "BK"]
+      "description": "Menschenlesbarer Titel. Enthaelt bewusst keine Kopie von Fragetext/Antworttext -- nur Verweise auf DIDs, Inhalt wird resolved."
     },
-    "sachbearbeiter_did": {
+    "trigger": {
+      "$ref": "#/$defs/hardLink",
+      "description": "Genau ein Record, der den Case ausgeloest hat -- hier: die parlamentarische Frage. Immer als Hard Link, da ein Case erst aus einer bereits finalisierten Frage entsteht."
+    },
+    "context": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/link" },
+      "default": [],
+      "description": "Hintergrundinformationen (RWP: SHOULD). In diesem PoC-Stand ungenutzt."
+    },
+    "process": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/link" },
+      "default": [],
+      "description": "Dokumentation von Bearbeitungsschritten (RWP: MAY, leer erlaubt). In diesem PoC-Stand ungenutzt."
+    },
+    "decision": {
+      "oneOf": [{ "$ref": "#/$defs/hardLink" }, { "type": "null" }],
+      "description": "Record(s), die den Entscheid dokumentieren (RWP: MAY, leer erlaubt). In diesem PoC-Stand ungenutzt."
+    },
+    "result": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/hardLink" },
+      "default": [],
+      "description": "Mindestens ein Record, der das Ergebnis dokumentiert (RWP: MUST, min. 1 fuer Finalisierung) -- hier: die finalisierte Antwort. Waehrend die Antwort noch Draft ist, steht ihre Referenz in workingLinks, nicht hier."
+    },
+    "merkleRoot": {
       "type": "string",
-      "pattern": "^did:rwp:"
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Merkle-Root ueber alle Hard-Link-snapshotHash-Werte (trigger, context, process, decision, result), berechnet nach RWP Abschnitt 9.5."
     },
-    "eroeffnet_am": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "antwort_did": {
-      "type": ["string", "null"],
-      "description": "DID der Antwort — gesetzt sobald Antwort erstellt."
-    },
-    "antwort_snapshot_hash": {
-      "type": ["string", "null"]
-    },
-    "nachweis_did": {
-      "type": ["string", "null"],
-      "description": "DID des Vortragungsnachweises — Pflichtvoraussetzung für Abschluss."
-    },
-    "nachweis_snapshot_hash": {
-      "type": ["string", "null"]
-    },
-    "merkle_root": {
-      "type": ["string", "null"],
-      "description": "Merkle-Root über alle verlinkten Records — berechnet bei Abschluss."
-    },
-    "geschlossen_am": {
-      "type": ["string", "null"],
-      "format": "date-time"
+    "workingLinks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workingLink" },
+      "default": [],
+      "description": "PoC-Erweiterung, nicht Teil von RWP Annex A.2: haelt Soft Links (RWP 8.4) auf noch nicht finalisierte Records -- z.B. die Antwort, solange sie Draft ist. Wird eine referenzierte Antwort finalisiert, wandert der Eintrag automatisch nach 'result' (als Hard Link mit dem nun feststehenden snapshotHash) und wird hier entfernt. Muss vor der Case-Finalisierung leer sein."
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "hardLink": {
+      "type": "object",
+      "required": ["type", "recordDid", "snapshotHash"],
+      "properties": {
+        "type": { "const": "hard" },
+        "recordDid": { "type": "string", "pattern": "^did:rwp:" },
+        "snapshotHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "role": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "link": {
+      "type": "object",
+      "required": ["type", "recordDid"],
+      "properties": {
+        "type": { "type": "string", "enum": ["hard", "working"] },
+        "recordDid": { "type": "string", "pattern": "^did:rwp:" },
+        "snapshotHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "role": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "workingLink": {
+      "type": "object",
+      "required": ["type", "recordDid", "targetField"],
+      "properties": {
+        "type": { "const": "working" },
+        "recordDid": { "type": "string", "pattern": "^did:rwp:" },
+        "targetField": {
+          "type": "string",
+          "enum": ["result", "decision"],
+          "description": "Wohin der Link wandert, sobald das referenzierte Record finalisiert wird."
+        },
+        "role": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
 }

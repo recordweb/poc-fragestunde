@@ -3,7 +3,7 @@
   "rwpSchemaVersion": "0.0.1",
   "schemaId": "did:rwp:bk.admin.ch/schema/fragestunde-antwort",
   "displayName": "Fragestunde — Antwort",
-  "description": "Die Antwort eines Bundesratsmitglieds auf eine parlamentarische Frage.",
+  "description": "Die Antwort eines Bundesratsmitglieds auf eine parlamentarische Frage. Die Verlinkung zur Frage lebt nicht mehr im Antwort-Record selbst, sondern ausschliesslich im umschliessenden Fragestunde-Case (RWP CaseRecord, Kapitel 8) als trigger/result.",
   "allowedStates": ["draft", "finalized"],
   "stateTransitions": [
     { "from": "draft", "to": "finalized", "requiresOwnerSignature": true }
@@ -13,22 +13,12 @@
     "finalized": ["application/json"]
   },
   "type": "object",
-  "required": ["antworttext", "frage_did", "frage_snapshot_hash", "bundesrat_did", "beantwortet_am"],
+  "required": ["antworttext", "bundesrat_did", "beantwortet_am"],
   "properties": {
     "antworttext": {
       "type": "string",
       "maxLength": 500,
       "description": "Der Text der Antwort (max. 500 Zeichen)."
-    },
-    "frage_did": {
-      "type": "string",
-      "pattern": "^did:rwp:",
-      "description": "DID der zugehörigen Frage (im Fragenmanagement, keine Kopie)."
-    },
-    "frage_snapshot_hash": {
-      "type": "string",
-      "pattern": "^sha256:",
-      "description": "snapshotHash der finalisierten Frage — Integritätsnachweis."
     },
     "bundesrat_did": {
       "type": "string",
