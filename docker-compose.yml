@@ -83,8 +83,6 @@ services:
     image: nginx:alpine
     container_name: poc-nginx
     restart: unless-stopped
-    ports:
-      - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./apps:/usr/share/nginx/html/apps:ro
