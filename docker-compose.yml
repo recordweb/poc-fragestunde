@@ -91,6 +91,7 @@ services:
       - ./apps:/usr/share/nginx/html/apps:ro
     networks:
       - poc_network
+      - tws-proxy
     depends_on:
       - resolver-parlament
       - resolver-bk
@@ -98,6 +99,9 @@ services:
 networks:
   poc_network:
     driver: bridge
+  tws-proxy:
+    external: true
+    name: tws-proxy
 
 volumes:
   poc_db_data:
