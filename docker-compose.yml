@@ -84,7 +84,7 @@ services:
       context: ./apps/sox/backend
     environment:
       PORT: 3000
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       POSTGRES_DB: poc_db
       POSTGRES_USER: poc_user
