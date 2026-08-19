@@ -1,0 +1,16 @@
+{
+  "title": "Klärung zur Frage F-2026-001",
+  "source": {
+    "system": "MiniChat",
+    "conversationId": "minichat-01J6X1QB3N7K"
+  },
+  "caseReference": {
+    "system": "Antwortmanagement",
+    "caseId": "F-2026-001",
+    "uri": "https://vps.recordweb.dev/antwortmanagement/cases/F-2026-001"
+  },
+  "conversation": {
+    "participants": [],
+    "messages": []
+  }
+}

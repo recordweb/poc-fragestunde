@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vps.recordweb.dev/sox/schemas/sox-minichat.schema.json",
+  "title": "SoX MiniChat payload",
+  "description": "Fachspezifischer Payload eines durch SoX verwalteten RWP-Records vom RecordType MiniChat.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "source",
+    "conversation"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Vom aufrufenden System übermittelter Titel des Records."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "conversationId"
+      ],
+      "properties": {
+        "system": {
+          "const": "MiniChat",
+          "description": "Quellsystem des Gesprächsinhalts."
+        },
+        "conversationId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identität der Konversation im MiniChat-System."
+        }
+      }
+    },
+    "caseReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "caseId"
+      ],
+      "properties": {
+        "system": {
+          "type": "string",
+          "minLength": 1
+        },
+        "caseId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "conversation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participants",
+        "messages"
+      ],
+      "properties": {
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "displayName"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "createdAt",
+              "author",
+              "content"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "author": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "displayName"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "content": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capturedAt"
+      ],
+      "properties": {
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "throughMessageId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

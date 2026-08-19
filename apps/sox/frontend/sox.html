@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoX – Record-Übersicht</title>
+  <style>
+    :root {
+      --color-primary: #0b4f6c;
+      --color-primary-dark: #073b4c;
+      --color-accent: #01baef;
+      --color-background: #f4f7f9;
+      --color-surface: #ffffff;
+      --color-text: #18212a;
+      --color-muted: #66737f;
+      --color-border: #d9e1e6;
+      --color-danger: #9f2525;
+      --color-danger-bg: #fff0f0;
+      --color-draft-bg: #fff4d6;
+      --color-draft-text: #805400;
+      --color-final-bg: #dff4e8;
+      --color-final-text: #17613b;
+      --color-mini-bg: #e8f2ff;
+      --color-mini-text: #174c82;
+      --color-teams-bg: #ece9ff;
+      --color-teams-text: #46398c;
+      --shadow: 0 4px 14px rgba(20, 43, 61, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      color: var(--color-text);
+      background: var(--color-background);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    header {
+      padding: 1.1rem max(1.5rem, calc((100vw - 1240px) / 2));
+      color: #ffffff;
+      background: linear-gradient(115deg, var(--color-primary-dark), var(--color-primary));
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 2px solid rgba(255, 255, 255, 0.78);
+      border-radius: 9px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .brand p {
+      margin: 0.2rem 0 0;
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.9rem;
+    }
+
+    main {
+      width: min(1240px, calc(100% - 3rem));
+      margin: 0 auto;
+      padding: 2rem 0 3rem;
+    }
+
+    .intro {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .intro h2 {
+      margin: 0;
+      font-size: 1.65rem;
+    }
+
+    .intro p {
+      max-width: 720px;
+      margin: 0.5rem 0 0;
+      color: var(--color-muted);
+      line-height: 1.5;
+    }
+
+    .record-count {
+      padding: 0.55rem 0.8rem;
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      color: var(--color-muted);
+      background: var(--color-surface);
+      font-size: 0.88rem;
+      white-space: nowrap;
+    }
+
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .filter-button {
+      padding: 0.55rem 0.85rem;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      color: var(--color-text);
+      background: var(--color-surface);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .filter-button:hover,
+    .filter-button:focus-visible {
+      border-color: var(--color-primary);
+      outline: none;
+    }
+
+    .filter-button.active {
+      border-color: var(--color-primary);
+      color: #ffffff;
+      background: var(--color-primary);
+    }
+
+    .record-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+
+    .record-card {
+      display: flex;
+      min-height: 260px;
+      flex-direction: column;
+      padding: 1.2rem;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      background: var(--color-surface);
+      box-shadow: var(--shadow);
+    }
+
+    .record-card:hover {
+      border-color: #aabfc9;
+      box-shadow: 0 7px 20px rgba(20, 43, 61, 0.14);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .card-top h3 {
+      margin: 0;
+      font-size: 1.08rem;
+      line-height: 1.35;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+      padding: 0.3rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .badge.draft {
+      color: var(--color-draft-text);
+      background: var(--color-draft-bg);
+    }
+
+    .badge.finalized {
+      color: var(--color-final-text);
+      background: var(--color-final-bg);
+    }
+
+    .metadata {
+      display: grid;
+      gap: 0.7rem;
+      margin: 1.2rem 0;
+    }
+
+    .metadata-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 0.5rem;
+      font-size: 0.86rem;
+      line-height: 1.35;
+    }
+
+    .metadata-label {
+      color: var(--color-muted);
+    }
+
+    .metadata-value {
+      min-width: 0;
+      overflow: hidden;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .type-label {
+      display: inline-flex;
+      width: fit-content;
+      padding: 0.3rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .type-label.minichat {
+      color: var(--color-mini-text);
+      background: var(--color-mini-bg);
+    }
+
+    .type-label.teamschat {
+      color: var(--color-teams-text);
+      background: var(--color-teams-bg);
+    }
+
+    .type-label.unknown {
+      color: #4c5964;
+      background: #e9edf0;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 0.6rem;
+      margin-top: auto;
+      padding-top: 0.8rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    .button {
+      padding: 0.55rem 0.8rem;
+      border: 1px solid var(--color-primary);
+      border-radius: 5px;
+      color: var(--color-primary);
+      background: #ffffff;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.88rem;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      color: #ffffff;
+      background: var(--color-primary);
+      outline: none;
+    }
+
+    .button.secondary {
+      border-color: #81919c;
+      color: #43515d;
+    }
+
+    .button.secondary:hover,
+    .button.secondary:focus-visible {
+      border-color: #43515d;
+      color: #ffffff;
+      background: #43515d;
+    }
+
+    .state {
+      grid-column: 1 / -1;
+      padding: 2.5rem 1.5rem;
+      border: 1px dashed var(--color-border);
+      border-radius: 10px;
+      color: var(--color-muted);
+      background: var(--color-surface);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .state.error {
+      border-color: #e8b8b8;
+      color: var(--color-danger);
+      background: var(--color-danger-bg);
+    }
+
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .loading::before {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid #b8c8d1;
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      content: "";
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    dialog {
+      width: min(760px, calc(100% - 2rem));
+      max-height: calc(100vh - 2rem);
+      padding: 0;
+      border: 0;
+      border-radius: 10px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.30);
+    }
+
+    dialog::backdrop {
+      background: rgba(10, 27, 40, 0.55);
+    }
+
+    .dialog-content {
+      padding: 1.5rem;
+    }
+
+    .dialog-header {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .dialog-header h2 {
+      margin: 0;
+      font-size: 1.3rem;
+    }
+
+    .close-button {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--color-border);
+      border-radius: 5px;
+      color: var(--color-text);
+      background: #ffffff;
+      cursor: pointer;
+      font-size: 1.3rem;
+      line-height: 1;
+    }
+
+    .close-button:hover,
+    .close-button:focus-visible {
+      border-color: var(--color-primary);
+      color: #ffffff;
+      background: var(--color-primary);
+      outline: none;
+    }
+
+    .detail-list {
+      display: grid;
+      gap: 0.85rem;
+      margin: 0;
+    }
+
+    .detail-row {
+      display: grid;
+      grid-template-columns: 145px 1fr;
+      gap: 0.8rem;
+      padding-bottom: 0.85rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .detail-row dt {
+      color: var(--color-muted);
+      font-size: 0.88rem;
+    }
+
+    .detail-row dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .payload-container {
+      margin-top: 1.25rem;
+    }
+
+    .payload-container h3 {
+      margin: 0 0 0.65rem;
+      font-size: 1rem;
+    }
+
+    .payload-code {
+      max-height: 360px;
+      margin: 0;
+      padding: 1rem;
+      overflow: auto;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      color: #d5e9f5;
+      background: #12212b;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .dialog-note {
+      margin: 1.25rem 0 0;
+      padding: 0.85rem;
+      border-left: 4px solid var(--color-accent);
+      color: #43515d;
+      background: #edf8fc;
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 600px) {
+      main {
+        width: min(100% - 2rem, 1240px);
+      }
+
+      .metadata-row,
+      .detail-row {
+        grid-template-columns: 1fr;
+        gap: 0.2rem;
+      }
+
+      .brand h1 {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">SoX</div>
+      <div>
+        <h1>System of X</h1>
+        <p>Systemneutrale Übersicht der integrierten Records</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <h2 id="page-title">Records</h2>
+        <p>
+          Diese Übersicht zeigt die durch SoX verwalteten RWP-Records aus
+          unterschiedlichen Quellsystemen.
+        </p>
+      </div>
+      <div class="record-count" id="record-count">Records werden geladen …</div>
+    </section>
+
+    <nav class="filter-bar" aria-label="RecordType filtern">
+      <button class="filter-button active" type="button" data-filter="all">Alle</button>
+      <button class="filter-button" type="button" data-filter="MiniChat">MiniChat</button>
+      <button class="filter-button" type="button" data-filter="TeamsChat">TeamsChat</button>
+    </nav>
+
+    <section class="record-grid" id="record-grid" aria-live="polite">
+      <div class="state">
+        <span class="loading">Records werden geladen</span>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="record-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2 id="dialog-title">Record-Details</h2>
+        <button
+          class="close-button"
+          id="close-dialog"
+          type="button"
+          aria-label="Dialog schliessen"
+        >×</button>
+      </div>
+
+      <dl class="detail-list" id="detail-list"></dl>
+
+      <div class="payload-container" id="payload-container" hidden>
+        <h3>Payload</h3>
+        <pre class="payload-code" id="payload-code"></pre>
+      </div>
+
+      <p class="dialog-note">
+        Der Payload ist die durch SoX verwaltete fachliche Repräsentation des
+        Quellsystems. Bei einem neu erzeugten Draft enthält er noch keinen
+        übernommenen Gesprächsstand.
+      </p>
+    </div>
+  </dialog>
+
+  <script>
+    const recordGrid = document.getElementById("record-grid");
+    const recordCount = document.getElementById("record-count");
+    const dialog = document.getElementById("record-dialog");
+    const dialogTitle = document.getElementById("dialog-title");
+    const detailList = document.getElementById("detail-list");
+    const payloadContainer = document.getElementById("payload-container");
+    const payloadCode = document.getElementById("payload-code");
+    const closeDialog = document.getElementById("close-dialog");
+    const filterButtons = document.querySelectorAll(".filter-button");
+
+    let records = [];
+    let activeFilter = "all";
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      if (!value) {
+        return "–";
+      }
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return String(value);
+      }
+
+      return new Intl.DateTimeFormat("de-CH", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }).format(date);
+    }
+
+    function typeClass(recordType) {
+      if (recordType === "MiniChat") {
+        return "minichat";
+      }
+
+      if (recordType === "TeamsChat") {
+        return "teamschat";
+      }
+
+      return "unknown";
+    }
+
+    function statusClass(status) {
+      return String(status).toLowerCase() === "finalized"
+        ? "finalized"
+        : "draft";
+    }
+
+    function visibleRecords() {
+      if (activeFilter === "all") {
+        return records;
+      }
+
+      return records.filter((record) => record.recordType === activeFilter);
+    }
+
+    function renderRecords() {
+      const filteredRecords = visibleRecords();
+
+      recordCount.textContent = `${filteredRecords.length} ${
+        filteredRecords.length === 1 ? "Record" : "Records"
+      }`;
+
+      if (filteredRecords.length === 0) {
+        recordGrid.innerHTML = `
+          <div class="state">
+            Für diesen Filter sind noch keine Records vorhanden.
+          </div>
+        `;
+        return;
+      }
+
+      recordGrid.innerHTML = filteredRecords.map((record) => `
+        <article class="record-card">
+          <div class="card-top">
+            <h3>${escapeHtml(record.title || "Ohne Titel")}</h3>
+            <span class="badge ${statusClass(record.status)}">
+              ${escapeHtml(record.status || "draft")}
+            </span>
+          </div>
+
+          <div class="metadata">
+            <div class="metadata-row">
+              <span class="metadata-label">RecordType</span>
+              <span class="type-label ${typeClass(record.recordType)}">
+                ${escapeHtml(record.recordType || "Unbekannt")}
+              </span>
+            </div>
+            <div class="metadata-row">
+              <span class="metadata-label">Version</span>
+              <span class="metadata-value">${escapeHtml(record.version || "–")}</span>
+            </div>
+            <div class="metadata-row">
+              <span class="metadata-label">DID</span>
+              <span class="metadata-value" title="${escapeHtml(record.did || "")}">
+                ${escapeHtml(record.did || "–")}
+              </span>
+            </div>
+            <div class="metadata-row">
+              <span class="metadata-label">Erstellt</span>
+              <span class="metadata-value">${escapeHtml(formatDate(record.createdAt))}</span>
+            </div>
+            <div class="metadata-row">
+              <span class="metadata-label">Aktualisiert</span>
+              <span class="metadata-value">${escapeHtml(formatDate(record.updatedAt))}</span>
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <button
+              class="button secondary"
+              type="button"
+              data-action="payload"
+              data-record-id="${escapeHtml(record.id)}"
+            >
+              Payload anzeigen
+            </button>
+            <button
+              class="button"
+              type="button"
+              data-action="details"
+              data-record-id="${escapeHtml(record.id)}"
+            >
+              Details
+            </button>
+          </div>
+        </article>
+      `).join("");
+
+      document.querySelectorAll("[data-action='details']").forEach((button) => {
+        button.addEventListener("click", () => {
+          openRecordDetails(button.dataset.recordId, false);
+        });
+      });
+
+      document.querySelectorAll("[data-action='payload']").forEach((button) => {
+        button.addEventListener("click", () => {
+          openRecordDetails(button.dataset.recordId, true);
+        });
+      });
+    }
+
+    async function loadRecords() {
+      const response = await fetch("./api/records", {
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        throw new Error("Die API hat keine Record-Liste geliefert.");
+      }
+
+      return data;
+    }
+
+    async function loadRecord(recordId) {
+      const response = await fetch(`./api/records/${encodeURIComponent(recordId)}`, {
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    async function openRecordDetails(recordId, showPayload) {
+      const summary = records.find((record) => record.id === recordId);
+
+      if (!summary) {
+        return;
+      }
+
+      dialogTitle.textContent = summary.title || "Record-Details";
+      detailList.innerHTML = `
+        <div class="state">
+          <span class="loading">Record wird geladen</span>
+        </div>
+      `;
+      payloadContainer.hidden = true;
+      dialog.showModal();
+
+      try {
+        const record = await loadRecord(recordId);
+
+        dialogTitle.textContent = record.title || "Record-Details";
+
+        const details = [
+          ["Record-ID", record.id],
+          ["DID", record.did],
+          ["RecordType", record.recordType],
+          ["Status", record.status],
+          ["Version", record.version],
+          ["Erstellt", formatDate(record.createdAt)],
+          ["Aktualisiert", formatDate(record.updatedAt)]
+        ];
+
+        detailList.innerHTML = details.map(([label, value]) => `
+          <div class="detail-row">
+            <dt>${escapeHtml(label)}</dt>
+            <dd>${escapeHtml(value || "–")}</dd>
+          </div>
+        `).join("");
+
+        if (showPayload) {
+          payloadCode.textContent = JSON.stringify(record.payload || {}, null, 2);
+          payloadContainer.hidden = false;
+        }
+      } catch (error) {
+        detailList.innerHTML = `
+          <div class="state error">
+            Der Record konnte nicht geladen werden.
+            <br>
+            <small>${escapeHtml(error.message)}</small>
+          </div>
+        `;
+      }
+    }
+
+    async function initialize() {
+      try {
+        records = await loadRecords();
+        renderRecords();
+      } catch (error) {
+        recordCount.textContent = "Backend nicht erreichbar";
+        recordGrid.innerHTML = `
+          <div class="state error">
+            <strong>Die SoX-Records konnten nicht geladen werden.</strong>
+            <br>
+            Prüfe, ob der SoX-Backend-Service läuft und Nginx
+            <code>/sox/api/records</code> korrekt weiterleitet.
+            <br>
+            <small>${escapeHtml(error.message)}</small>
+          </div>
+        `;
+      }
+    }
+
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        activeFilter = button.dataset.filter;
+
+        filterButtons.forEach((item) => {
+          item.classList.toggle("active", item === button);
+        });
+
+        renderRecords();
+      });
+    });
+
+    closeDialog.addEventListener("click", () => {
+      dialog.close();
+    });
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    });
+
+    initialize();
+  </script>
+</body>
+</html>
