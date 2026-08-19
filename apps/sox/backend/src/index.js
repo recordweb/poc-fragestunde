@@ -27,15 +27,6 @@ app.use("/api/records", recordsRouter);
 app.use("/did", didRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.get("/", (_req, res) => {
-  res.sendFile(path.join(__dirname, "../../frontend/sox.html"));
-});
-
-app.use(
-  "/",
-  express.static(path.join(__dirname, "../../frontend"))
-);
-
 app.use((error, _req, res, _next) => {
   console.error(error);
   res.status(500).json({
