@@ -100,14 +100,12 @@ services:
     image: nginx:alpine
     container_name: poc-nginx
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./apps:/usr/share/nginx/html/apps:ro
     networks:
       - poc_network
+      - tws-proxy
     depends_on:
       - resolver-parlament
       - resolver-bk
@@ -115,6 +113,9 @@ services:
 networks:
   poc_network:
     driver: bridge
+  tws-proxy:
+    external: true
+    name: tws-proxy
 
 volumes:
   poc_db_data:
