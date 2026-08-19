@@ -82,6 +82,8 @@ services:
   sox:
     build:
       context: ./apps/sox/backend
+    container_name: poc-sox
+    restart: unless-stopped
     environment:
       PORT: 3000
       POSTGRES_HOST: db
@@ -90,10 +92,8 @@ services:
       POSTGRES_USER: poc_user
       POSTGRES_PASSWORD: poc_recordweb
       SOX_DID_NAMESPACE: s73f42a3
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
+    networks:
+      - poc_network
 
 
   nginx:
