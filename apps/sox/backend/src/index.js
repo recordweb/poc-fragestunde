@@ -8,6 +8,7 @@ const swaggerUi = require("swagger-ui-express");
 const { initializeDatabase } = require("./db");
 const recordsRouter = require("./routes/records");
 const didRouter = require("./routes/did");
+const settingsRouter = require("./routes/settings");
 const swaggerSpec = require("./swagger");
 
 const app = express();
@@ -24,6 +25,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/records", recordsRouter);
+app.use("/api/settings", settingsRouter);
 app.use("/did", didRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

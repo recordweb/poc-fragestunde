@@ -46,6 +46,7 @@ services:
       PGPASSWORD: poc_recordweb
       PGDATABASE: poc_db
       PUBLIC_BASE_URL: https://vps.recordweb.dev
+      SOX_API_BASE_URL: http://sox:3000/api
     volumes:
       - ./schemas:/app/schemas:ro
     networks:

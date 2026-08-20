@@ -31,13 +31,7 @@ router.get("/:id", async (req, res, next) => {
       alsoKnownAs: [
         `https://vps.recordweb.dev/sox/api/records/${record.id}`
       ],
-      service: [
-        {
-          id: `${record.did}#record`,
-          type: "RecordWebRecord",
-          serviceEndpoint: `https://vps.recordweb.dev/sox/api/records/${record.id}`
-        }
-      ],
+      recordEndpoint: `https://vps.recordweb.dev/sox/api/records/${record.id}`,
       record: {
         recordType: record.record_type,
         status: record.status,

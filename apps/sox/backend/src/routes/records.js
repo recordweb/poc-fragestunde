@@ -23,6 +23,23 @@ function mapRecord(row) {
   };
 }
 
+async function getChatEndpoint(recordType) {
+  const settingKey = recordType === "MiniChat"
+    ? "miniChatEndpoint"
+    : "teamsChatEndpoint";
+
+  const result = await pool.query(
+    `
+    SELECT setting_value
+    FROM sox_settings
+    WHERE setting_key = $1
+    `,
+    [settingKey]
+  );
+
+  return result.rows[0]?.setting_value || "";
+}
+
 /**
  * @openapi
  * /api/records:
@@ -85,10 +102,19 @@ router.post("/", async (req, res, next) => {
       });
     }
 
+    const chatEndpoint = await getChatEndpoint(recordType);
+
+    if (!chatEndpoint) {
+      return res.status(409).json({
+        error: `Für ${recordType} ist in SoX noch kein Chat-Endpunkt konfiguriert`
+      });
+    }
+
     const record = createDraftRecord({
       recordType,
       title: title.trim(),
-      caseReference
+      caseReference,
+      chatEndpoint
     });
 
     const result = await pool.query(

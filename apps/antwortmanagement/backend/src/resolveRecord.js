@@ -13,20 +13,35 @@
 // von vornherein bekannt, dass Fragen-DIDs vom Fragenmanagement stammen.
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
 
-// Liefert den vollständigen, aktuell gültigen Record oder null, wenn er
-// (noch) nicht auflösbar ist — z. B. weil der Record nicht (mehr) finalisiert
-// ist, die DID unbekannt ist, oder das Fragenmanagement gerade nicht
-// erreichbar ist. Wirft absichtlich nicht: ein einzelner nicht auflösbarer
-// Eintrag soll nie die ganze Inbox-Ansicht zum Absturz bringen.
+const DID_RESOLVER_PATHS = {
+  b7d4c810: "/fragenmanagement/did",
+  s73f42a3: "/sox/did"
+};
+
+function resolverPathForDid(did) {
+  const match = /^did:rwp:([^:]+):/.exec(did || "");
+  return match ? DID_RESOLVER_PATHS[match[1]] || null : null;
+}
+
+// Löst eine Record-DID über das DID-Dokument auf. Das DID-Dokument liefert
+// den autoritativen recordEndpoint; erst danach wird der Record selbst bei
+// seiner Quelle nachgeladen.
 export async function resolveRecord(did) {
   try {
-    const didDocRes = await fetch(`${PUBLIC_BASE_URL}/fragenmanagement/did/${encodeURIComponent(did)}`);
+    const resolverPath = resolverPathForDid(did);
+    if (!resolverPath) return null;
+
+    const didDocRes = await fetch(
+      `${PUBLIC_BASE_URL}${resolverPath}/${encodeURIComponent(did)}`
+    );
     if (!didDocRes.ok) return null;
+
     const didDoc = await didDocRes.json();
     if (!didDoc.recordEndpoint) return null;
 
     const recordRes = await fetch(didDoc.recordEndpoint);
     if (!recordRes.ok) return null;
+
     return await recordRes.json();
   } catch {
     return null;

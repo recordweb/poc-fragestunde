@@ -1,5 +1,6 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
+import pool from "../db.js";
 import { validatePayload, schemaVersionHash, RECORD_TYPE_ANTWORT, RECORD_TYPE_CASE } from "../schemas.js";
 import { computeMerkleRoot, collectHardHashes } from "../merkle.js";
 import { resolveRecord } from "../resolveRecord.js";
@@ -10,6 +11,14 @@ import {
 
 const router = express.Router();
 const NAMESPACE_ANTWORTMANAGEMENT = "b7d4c810";
+const SOX_API_BASE_URL = process.env.SOX_API_BASE_URL || "http://sox:3000/api";
+const SOX_RECORD_TYPES = new Set(["MiniChat", "TeamsChat"]);
+
+function chatRole(recordType) {
+  return recordType === "MiniChat"
+    ? "MiniChat (in Bearbeitung)"
+    : "TeamsChat (in Bearbeitung)";
+}
 
 // Reichert einen Case um den frisch aufgeloesten Trigger (Frage, ueber den
 // Resolver -- keine lokale Kopie) und die lokal bereits bekannte Antwort an
@@ -145,6 +154,118 @@ router.post("/", async (req, res) => {
   res.status(201).json(await enrichCase(await getFullRecord(caseDid)));
 });
 
+router.post(/^\/(.+)\/chat-records$/, async (req, res) => {
+  const caseDid = decodeURIComponent(req.params[0]);
+  const { recordType } = req.body || {};
+
+  if (!SOX_RECORD_TYPES.has(recordType)) {
+    return res.status(400).json({
+      error: "recordType must be MiniChat or TeamsChat"
+    });
+  }
+
+  const caseRecord = await getFullRecord(caseDid);
+  if (!caseRecord || caseRecord.record_type !== RECORD_TYPE_CASE) {
+    return res.status(404).json({
+      error: "Case nicht gefunden"
+    });
+  }
+
+  if (caseRecord.state !== "draft") {
+    return res.status(409).json({
+      error: "Chats können nur bei Draft-Cases gestartet werden"
+    });
+  }
+
+  const existingChat = (caseRecord.payload.workingLinks || []).find((link) =>
+    link.targetField === "process" &&
+    link.recordType === recordType
+  );
+
+  if (existingChat) {
+    return res.status(409).json({
+      error: `Für diesen Case existiert bereits ein offener ${recordType}-Record`,
+      recordDid: existingChat.recordDid
+    });
+  }
+
+  const caseReference = {
+    system: "antwortmanagement",
+    caseId: caseDid,
+    uri: `${process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev"}/antwortmanagement/api/cases/${encodeURIComponent(caseDid)}`
+  };
+
+  const title = `${recordType} zu ${caseRecord.payload.title || caseDid}`;
+
+  let soxResponse;
+  try {
+    soxResponse = await fetch(`${SOX_API_BASE_URL}/records`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        recordType,
+        title,
+        caseReference
+      })
+    });
+  } catch {
+    return res.status(502).json({
+      error: "SoX ist nicht erreichbar"
+    });
+  }
+
+  const soxBody = await soxResponse.json().catch(() => ({}));
+
+  if (!soxResponse.ok) {
+    return res.status(soxResponse.status >= 500 ? 502 : soxResponse.status).json({
+      error: soxBody.error || "SoX konnte keinen Chat-Record erstellen"
+    });
+  }
+
+  const payload = structuredClone(caseRecord.payload);
+  payload.workingLinks = payload.workingLinks || [];
+  payload.workingLinks.push({
+    type: "working",
+    recordDid: soxBody.did,
+    targetField: "process",
+    role: chatRole(recordType),
+    recordType
+  });
+  payload.merkleRoot = computeMerkleRoot(collectHardHashes(payload));
+
+  const payloadCheck = validatePayload(RECORD_TYPE_CASE, payload);
+  if (!payloadCheck.valid) {
+    return res.status(422).json({
+      error: "Aktualisierter Case-Payload ungültig",
+      details: payloadCheck.errors
+    });
+  }
+
+  const updatedSnapshot = await createSnapshot({
+    did: caseDid,
+    parents: [caseRecord.snapshot_hash].filter(Boolean),
+    state: "draft",
+    recordType: caseRecord.record_type,
+    schemaVersion: caseRecord.schema_version,
+    owner: caseRecord.owner,
+    payload,
+    payloadFormat: "application/json"
+  });
+
+  await setCurrentSnapshot(caseDid, updatedSnapshot.id);
+
+  await logEvent(
+    `${recordType} gestartet: ${soxBody.did} mit Case ${caseDid} verknüpft`
+  );
+
+  res.status(201).json({
+    chatRecord: soxBody,
+    case: await enrichCase(await getFullRecord(caseDid))
+  });
+});
+
 // ---------- Case finalisieren ----------
 /**
  * @openapi
@@ -184,8 +305,12 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
   const payload = record.payload;
   if ((payload.workingLinks || []).length > 0) {
     return res.status(409).json({
-      error: "Case kann erst finalisiert werden, wenn alle verlinkten Records (insb. die Antwort) finalisiert sind",
-      openWorkingReferences: payload.workingLinks.map((w) => w.recordDid)
+      error: "Case kann erst finalisiert werden, wenn alle verlinkten Records finalisiert sind",
+      openWorkingReferences: payload.workingLinks.map((link) => ({
+        recordDid: link.recordDid,
+        targetField: link.targetField,
+        role: link.role
+      }))
     });
   }
   if (!payload.result || payload.result.length < 1) {
@@ -239,7 +364,12 @@ router.get(/^\/(.+)\/completeness$/, async (req, res) => {
   if (!payload.trigger) missingElements.push("trigger");
   if (!payload.result || payload.result.length < 1) missingElements.push("result");
 
-  const openWorkingReferences = (payload.workingLinks || []).map((w) => w.recordDid);
+  const openWorkingReferences = (payload.workingLinks || []).map((link) => ({
+    recordDid: link.recordDid,
+    targetField: link.targetField,
+    role: link.role
+  }));
+
   const merkleRootValid = computeMerkleRoot(collectHardHashes(payload)) === payload.merkleRoot;
 
   res.json({
@@ -249,6 +379,41 @@ router.get(/^\/(.+)\/completeness$/, async (req, res) => {
     openWorkingReferences,
     merkleRootValid
   });
+});
+
+router.get(/^\/(.+)\/chat-records\/(.+)$/, async (req, res) => {
+  const caseDid = decodeURIComponent(req.params[0]);
+  const chatDid = decodeURIComponent(req.params[1]);
+
+  const caseRecord = await getFullRecord(caseDid);
+  if (!caseRecord || caseRecord.record_type !== RECORD_TYPE_CASE) {
+    return res.status(404).json({
+      error: "Case nicht gefunden"
+    });
+  }
+
+  const chatLink = [
+    ...(caseRecord.payload.process || []),
+    ...(caseRecord.payload.workingLinks || [])
+  ].find((link) =>
+    link.recordDid === chatDid &&
+    (link.targetField === "process" || link.type === "hard")
+  );
+
+  if (!chatLink) {
+    return res.status(404).json({
+      error: "Der SoX-Record ist nicht mit diesem Case verknüpft"
+    });
+  }
+
+  const record = await resolveRecord(chatDid);
+  if (!record) {
+    return res.status(502).json({
+      error: "SoX-Record konnte nicht aufgelöst werden"
+    });
+  }
+
+  res.json(record);
 });
 
 // ---------- Einzelner Case (muss nach den spezifischen Routen stehen) ----------

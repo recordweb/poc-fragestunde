@@ -73,6 +73,7 @@
 <script>
 const CASES_API_BASE = "/antwortmanagement/api/cases";
 const RECORDS_API_BASE = "/antwortmanagement/api/records";
+const SOX_RECORD_TYPES = ["MiniChat", "TeamsChat"];
 
 const RESOLVER_BASE = "/resolver/bk";
 // Die Frage-Auswahl wird bewusst NICHT direkt beim Fragenmanagement abgefragt,
@@ -296,6 +297,140 @@ function renderAntwortDetails(c) {
   `;
 }
 
+function findChatLink(c, recordType) {
+  const hardLink = (c.payload.process || []).find((link) =>
+    link.recordType === recordType ||
+    link.role === recordType
+  );
+
+  if (hardLink) {
+    return { ...hardLink, type: "hard" };
+  }
+
+  const workingLink = (c.payload.workingLinks || []).find((link) =>
+    link.targetField === "process" &&
+    (link.recordType === recordType || link.role?.startsWith(recordType))
+  );
+
+  return workingLink || null;
+}
+
+function renderChatDetails(c, recordType) {
+  const link = findChatLink(c, recordType);
+
+  if (!link) {
+    return `
+      <p><em>Für diesen Case wurde noch kein ${recordType}-Record gestartet.</em></p>
+    `;
+  }
+
+  return `
+    <div
+      class="nested soxChatDetails"
+      data-case-did="${encodeURIComponent(c.did)}"
+      data-record-did="${encodeURIComponent(link.recordDid)}"
+      data-record-type="${recordType}"
+    >
+      <strong>${recordType}</strong>
+      <span class="badge">${link.type === "hard" ? "hard link" : "working link — noch nicht finalisiert"}</span>
+      <div class="did">Record-DID: ${link.recordDid}</div>
+      <div class="soxChatContent">Wird beim Öffnen geladen…</div>
+    </div>
+  `;
+}
+
+function renderChatStartButtons(c) {
+  if (c.state !== "draft") return "";
+
+  return SOX_RECORD_TYPES.map((recordType) => {
+    const existingLink = findChatLink(c, recordType);
+
+    if (existingLink) {
+      return `
+        <span class="badge">
+          ${recordType} bereits verknüpft
+        </span>
+      `;
+    }
+
+    const label = recordType === "MiniChat"
+      ? "MiniChat starten"
+      : "TeamsChat starten";
+
+    return `
+      <button
+        class="startChatBtn"
+        data-case-did="${encodeURIComponent(c.did)}"
+        data-record-type="${recordType}"
+      >
+        ${label}
+      </button>
+    `;
+  }).join("");
+}
+
+async function loadChatDetails(container) {
+  if (container.dataset.loaded === "true") return;
+
+  const recordDid = decodeURIComponent(container.dataset.recordDid);
+  const content = container.querySelector(".soxChatContent");
+
+  content.textContent = "SoX-Record wird geladen…";
+
+  try {
+    const res = await fetch(
+      `${CASES_API_BASE}/${container.dataset.caseDid}/chat-records/${encodeURIComponent(recordDid)}`
+    );
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || `HTTP ${res.status}`);
+    }
+
+    const record = await res.json();
+    const payload = record.payload || {};
+
+    content.innerHTML = `
+      <div class="did">Titel: ${record.title || "–"}</div>
+      <div class="did">Status: ${record.status || record.state || "–"}</div>
+      <div class="did">RecordType: ${record.recordType || "–"}</div>
+      <details>
+        <summary>Payload anzeigen</summary>
+        <pre>${JSON.stringify(payload, null, 2)}</pre>
+      </details>
+    `;
+
+    container.dataset.loaded = "true";
+  } catch (error) {
+    content.innerHTML = `
+      <p><em>SoX-Record konnte nicht geladen werden: ${error.message}</em></p>
+    `;
+  }
+}
+
+async function startChat(caseDid, recordType) {
+  const label = recordType === "MiniChat" ? "MiniChat" : "TeamsChat";
+  const ok = confirm(`${label} für diesen Case starten?`);
+  if (!ok) return;
+
+  const res = await fetch(
+    `${CASES_API_BASE}/${encodeURIComponent(caseDid)}/chat-records`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recordType })
+    }
+  );
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    alert(`Fehler: ${error.error || `HTTP ${res.status}`}`);
+    return;
+  }
+
+  await loadCases();
+}
+
 function renderCases(cases) {
   lastLoadedCases = cases;
   casesList.innerHTML = "";
@@ -321,11 +456,25 @@ function renderCases(cases) {
         ${renderAntwortDetails(c)}
       </details>
 
+      <details class="soxChatDetailsGroup">
+        <summary>MiniChat anzeigen</summary>
+        ${renderChatDetails(c, "MiniChat")}
+      </details>
+
+      <details class="soxChatDetailsGroup">
+        <summary>TeamsChat anzeigen</summary>
+        ${renderChatDetails(c, "TeamsChat")}
+      </details>
+
+      <div style="margin-top:8px;">
+        ${renderChatStartButtons(c)}
+      </div>
+
       ${c.state === "draft" ? `
         <button class="finalizeCaseBtn" data-did="${c.did}" ${bereitZurFinalisierung ? "" : "disabled"}>
           Case finalisieren
         </button>
-        ${!bereitZurFinalisierung ? '<span class="badge">erst möglich, wenn die Antwort finalisiert ist</span>' : ""}
+        ${!bereitZurFinalisierung ? '<span class="badge">erst möglich, wenn Antwort und alle verknüpften Chat-Records finalisiert sind</span>' : ""}
       ` : ""}
 
       <details>
@@ -482,9 +631,25 @@ casesList.addEventListener("click", (e) => {
   if (e.target.classList.contains("editAntwortBtn")) {
     startEditAntwort(e.target.dataset.did);
   }
+  if (e.target.classList.contains("startChatBtn")) {
+    startChat(
+      decodeURIComponent(e.target.dataset.caseDid),
+      e.target.dataset.recordType
+    );
+  }
 });
 
 casesList.addEventListener("toggle", async (e) => {
+    if (
+      e.target.classList.contains("soxChatDetailsGroup") &&
+      e.target.open
+    ) {
+      const container = e.target.querySelector(".soxChatDetails");
+      if (container) {
+        await loadChatDetails(container);
+      }
+      return;
+    }
   if (!e.target.classList.contains("historyDetails")) return;
   if (!e.target.open) return;
 

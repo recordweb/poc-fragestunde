@@ -443,6 +443,61 @@
       line-height: 1.45;
     }
 
+    .settings-card {
+      display: grid;
+      gap: 0.7rem;
+      margin-bottom: 1.5rem;
+      padding: 1.2rem;
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      background: var(--color-surface);
+      box-shadow: var(--shadow);
+    }
+
+    .settings-card h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .settings-card p {
+      margin: 0.35rem 0 0;
+      color: var(--color-muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+
+    .settings-card label {
+      margin-top: 0.35rem;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .settings-card input {
+      width: 100%;
+      padding: 0.6rem 0.7rem;
+      border: 1px solid var(--color-border);
+      border-radius: 5px;
+      font: inherit;
+    }
+
+    .settings-card input:focus {
+      border-color: var(--color-primary);
+      outline: 2px solid rgba(1, 186, 239, 0.2);
+    }
+
+    .settings-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.35rem;
+    }
+
+    .settings-status {
+      color: var(--color-muted);
+      font-size: 0.85rem;
+    }
+
     @media (max-width: 600px) {
       main {
         width: min(100% - 2rem, 1240px);
@@ -481,6 +536,39 @@
         </p>
       </div>
       <div class="record-count" id="record-count">Records werden geladen …</div>
+    </section>
+
+    <section class="settings-card" aria-labelledby="settings-title">
+      <div>
+        <h2 id="settings-title">Chat-Endpunkte</h2>
+        <p>
+          Endpunkte der externen Chat-Anwendungen. Der beim Start eines
+          Records gültige Endpunkt wird in dessen Payload übernommen.
+        </p>
+      </div>
+
+      <label for="mini-chat-endpoint">MiniChat-Endpunkt</label>
+      <input
+        id="mini-chat-endpoint"
+        type="url"
+        placeholder="https://example.org/minichat"
+        autocomplete="url"
+      >
+
+      <label for="teams-chat-endpoint">TeamsChat-Endpunkt</label>
+      <input
+        id="teams-chat-endpoint"
+        type="url"
+        placeholder="https://example.org/teamschat"
+        autocomplete="url"
+      >
+
+      <div class="settings-actions">
+        <button class="button" id="save-settings" type="button">
+          Endpunkte speichern
+        </button>
+        <span id="settings-status" class="settings-status" aria-live="polite"></span>
+      </div>
     </section>
 
     <nav class="filter-bar" aria-label="RecordType filtern">
@@ -533,6 +621,10 @@
     const payloadCode = document.getElementById("payload-code");
     const closeDialog = document.getElementById("close-dialog");
     const filterButtons = document.querySelectorAll(".filter-button");
+    const miniChatEndpointInput = document.getElementById("mini-chat-endpoint");
+    const teamsChatEndpointInput = document.getElementById("teams-chat-endpoint");
+    const saveSettingsButton = document.getElementById("save-settings");
+    const settingsStatus = document.getElementById("settings-status");
 
     let records = [];
     let activeFilter = "all";
@@ -762,8 +854,53 @@
       }
     }
 
+    async function loadSettings() {
+      const response = await fetch("./api/settings", {
+        headers: { "Accept": "application/json" }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const settings = await response.json();
+      miniChatEndpointInput.value = settings.miniChatEndpoint || "";
+      teamsChatEndpointInput.value = settings.teamsChatEndpoint || "";
+    }
+
+    async function saveSettings() {
+      settingsStatus.textContent = "Speichert…";
+      saveSettingsButton.disabled = true;
+
+      try {
+        const response = await fetch("./api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            miniChatEndpoint: miniChatEndpointInput.value,
+            teamsChatEndpoint: teamsChatEndpointInput.value
+          })
+        });
+
+        const body = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(body.error || `HTTP ${response.status}`);
+        }
+
+        miniChatEndpointInput.value = body.miniChatEndpoint || "";
+        teamsChatEndpointInput.value = body.teamsChatEndpoint || "";
+        settingsStatus.textContent = "Gespeichert.";
+      } catch (error) {
+        settingsStatus.textContent = `Fehler: ${error.message}`;
+      } finally {
+        saveSettingsButton.disabled = false;
+      }
+    }
+
     async function initialize() {
       try {
+        await loadSettings();
         records = await loadRecords();
         renderRecords();
       } catch (error) {
@@ -802,6 +939,8 @@
         dialog.close();
       }
     });
+
+    saveSettingsButton.addEventListener("click", saveSettings);
 
     initialize();
   </script>
