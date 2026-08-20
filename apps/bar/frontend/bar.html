@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BAR – Conformance Authority</title>
+  <style>
+    :root {
+      --blue: #003b70;
+      --blue-dark: #00284c;
+      --blue-light: #eaf3fb;
+      --green: #137333;
+      --yellow: #9a6700;
+      --red: #b42318;
+      --grey-50: #f8fafc;
+      --grey-100: #f1f5f9;
+      --grey-200: #e2e8f0;
+      --grey-500: #64748b;
+      --grey-800: #1e293b;
+      --white: #ffffff;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--grey-800);
+      background: var(--grey-50);
+    }
+
+    header {
+      background: var(--blue);
+      color: white;
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    header h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+
+    header p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      opacity: .85;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .hidden { display: none !important; }
+
+    .login-card,
+    .card {
+      background: var(--white);
+      border: 1px solid var(--grey-200);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, .08);
+    }
+
+    .login-card {
+      max-width: 520px;
+      margin: 60px auto;
+      padding: 28px;
+    }
+
+    .login-card h2,
+    .card h2 {
+      margin-top: 0;
+      color: var(--blue-dark);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 350px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .card { padding: 20px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin: 0 0 6px;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
+      font: inherit;
+      padding: 9px 10px;
+      background: white;
+    }
+
+    textarea {
+      min-height: 95px;
+      resize: vertical;
+    }
+
+    .field { margin-bottom: 14px; }
+
+    button {
+      border: 0;
+      border-radius: 5px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: bold;
+      padding: 9px 13px;
+    }
+
+    button.primary {
+      color: white;
+      background: var(--blue);
+    }
+
+    button.primary:hover { background: var(--blue-dark); }
+
+    button.secondary {
+      color: var(--blue-dark);
+      background: var(--blue-light);
+    }
+
+    button.danger {
+      color: white;
+      background: var(--red);
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .user-info {
+      text-align: right;
+      font-size: 13px;
+    }
+
+    .user-info strong { display: block; }
+
+    .user-info code {
+      display: inline-block;
+      max-width: 360px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #dcefff;
+    }
+
+    .nav-list,
+    .record-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .nav-list li,
+    .record-list li {
+      border-bottom: 1px solid var(--grey-200);
+    }
+
+    .record-list button {
+      width: 100%;
+      text-align: left;
+      padding: 12px 4px;
+      background: transparent;
+      color: inherit;
+      font-weight: normal;
+    }
+
+    .record-list button:hover {
+      background: var(--grey-50);
+    }
+
+    .record-title {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .record-meta {
+      color: var(--grey-500);
+      display: block;
+      font-size: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 3px 8px;
+    }
+
+    .badge.draft { background: #fff3cd; color: var(--yellow); }
+    .badge.finalized { background: #dcfce7; color: var(--green); }
+    .badge.passed { background: #dcfce7; color: var(--green); }
+    .badge.failed { background: #fee2e2; color: var(--red); }
+    .badge.not-tested { background: var(--grey-100); color: var(--grey-500); }
+
+    .alert {
+      border-radius: 5px;
+      margin: 0 0 16px;
+      padding: 12px;
+    }
+
+    .alert.error {
+      color: #7f1d1d;
+      background: #fee2e2;
+      border: 1px solid #fecaca;
+    }
+
+    .alert.success {
+      color: #14532d;
+      background: #dcfce7;
+      border: 1px solid #bbf7d0;
+    }
+
+    .test-card {
+      border: 1px solid var(--grey-200);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      padding: 14px;
+    }
+
+    .test-card h4 { margin: 0 0 8px; }
+
+    .test-card p {
+      color: var(--grey-500);
+      font-size: 13px;
+      line-height: 1.45;
+      margin: 6px 0;
+    }
+
+    .test-grid {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    pre {
+      background: #0f172a;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 12px;
+      line-height: 1.45;
+      max-height: 560px;
+      overflow: auto;
+      padding: 15px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .hint {
+      color: var(--grey-500);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+      .layout,
+      .grid,
+      .test-grid {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .user-info { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>BAR – Conformance Authority</h1>
+      <p>Bundesarchiv · RecordWeb Fragestunde PoC · Ausbaustufe 1</p>
+    </div>
+    <div id="userInfo" class="user-info hidden">
+      <strong id="userName"></strong>
+      <span id="userRole"></span><br>
+      <code id="userDid"></code>
+    </div>
+  </header>
+
+  <main>
+    <section id="loginView" class="login-card">
+      <h2>BAR-Anmeldung</h2>
+      <p class="hint">
+        Die Anmeldung ist bewusst einfach gehalten. Sie erzeugt für den PoC eine
+        RWP-DID für die handelnde Person und bindet die gewählte BAR-Rolle an die Session.
+      </p>
+
+      <div id="loginMessage"></div>
+
+      <div class="field">
+        <label for="displayName">Name</label>
+        <input id="displayName" placeholder="z. B. Ada Archivarin" value="Ada Archivarin">
+      </div>
+
+      <div class="field">
+        <label for="role">BAR-Rolle</label>
+        <select id="role">
+          <option value="bar-attester">BAR Attester – Assessment anlegen, bearbeiten und finalisieren</option>
+          <option value="bar-auditor">BAR Auditor – Assessment prüfen und Evidenz erfassen</option>
+          <option value="bar-viewer">BAR Viewer – nur lesen</option>
+        </select>
+      </div>
+
+      <div class="button-row">
+        <button class="primary" id="loginButton">Anmelden</button>
+      </div>
+    </section>
+
+    <section id="appView" class="hidden">
+      <div id="appMessage"></div>
+
+      <div class="layout">
+        <aside class="card">
+          <h2>Conformance-Akten</h2>
+          <div class="button-row">
+            <button id="newAssessmentButton" class="primary">Neue Prüfung</button>
+            <button id="reloadButton" class="secondary">Aktualisieren</button>
+          </div>
+
+          <p class="hint">
+            Ein Draft dokumentiert die laufende Prüfung. Erst nach bestandenen
+            Pflichttests und vollständiger Evidenz kann ein BAR Attester einen
+            unveränderlichen ConformanceRecord finalisieren.
+          </p>
+
+          <ul id="assessmentList" class="record-list"></ul>
+        </aside>
+
+        <section id="detailPanel" class="card">
+          <h2>Willkommen</h2>
+          <p>
+            Wähle eine bestehende Conformance-Akte oder erstelle eine neue Prüfung.
+          </p>
+          <p class="hint">
+            Stufe 1 erzeugt ConformanceRecords unabhängig vom SchemaRecord.
+            Die Schema-Kopplung folgt erst in Ausbaustufe 2.
+          </p>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const apiBase = window.BAR_API_BASE || "http://localhost:3000";
+    const sessionKey = "recordweb-bar-session";
+    let session = null;
+    let currentAssessment = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function setMessage(target, type, message) {
+      $(target).innerHTML = message
+        ? `<div class="alert ${type}">${escapeHtml(message)}</div>`
+        : "";
+    }
+
+    function authHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "x-rwp-user-did": session.user.did,
+        "x-rwp-role": session.user.role
+      };
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(`${apiBase}${path}`, {
+        ...options,
+        headers: {
+          ...(options.body ? { "Content-Type": "application/json" } : {}),
+          ...(options.headers || {})
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const detail = Array.isArray(data.errors) ? ` ${data.errors.join(" ")}` : "";
+        throw new Error(data.message || data.error || `HTTP ${response.status}.${detail}`);
+      }
+
+      return data;
+    }
+
+    function roleLabel(role) {
+      return {
+        "bar-attester": "BAR Attester",
+        "bar-auditor": "BAR Auditor",
+        "bar-viewer": "BAR Viewer"
+      }[role] || role;
+    }
+
+    function canEdit() {
+      return ["bar-attester", "bar-auditor"].includes(session.user.role);
+    }
+
+    function canFinalize() {
+      return session.user.role === "bar-attester";
+    }
+
+    async function login() {
+      const displayName = $("displayName").value.trim();
+      const role = $("role").value;
+
+      try {
+        setMessage("loginMessage", "", "");
+        const data = await request("/api/session", {
+          method: "POST",
+          body: JSON.stringify({ displayName, role })
+        });
+
+        session = data;
+        sessionStorage.setItem(sessionKey, JSON.stringify(session));
+        showApplication();
+      } catch (error) {
+        setMessage("loginMessage", "error", error.message);
+      }
+    }
+
+    function showApplication() {
+      $("loginView").classList.add("hidden");
+      $("appView").classList.remove("hidden");
+      $("userInfo").classList.remove("hidden");
+      $("userName").textContent = session.user.displayName;
+      $("userRole").textContent = roleLabel(session.user.role);
+      $("userDid").textContent = session.user.did;
+      $("newAssessmentButton").disabled = !canEdit();
+      loadAssessments();
+    }
+
+    async function loadAssessments(selectId = null) {
+      try {
+        const data = await request("/api/assessments", {
+          headers: authHeaders()
+        });
+
+        const list = $("assessmentList");
+
+        if (!data.assessments.length) {
+          list.innerHTML = `<li><p class="hint">Noch keine Prüfungen vorhanden.</p></li>`;
+          return;
+        }
+
+        list.innerHTML = data.assessments.map((assessment) => `
+          <li>
+            <button data-assessment-id="${escapeHtml(assessment.id)}">
+              <span class="record-title">${escapeHtml(assessment.subject.productName || "Unbenannte Anwendung")}</span>
+              <span class="record-meta">
+                ${escapeHtml(assessment.subject.productVersion || "ohne Version")}
+                · <span class="badge ${assessment.status}">${escapeHtml(assessment.status)}</span>
+              </span>
+            </button>
+          </li>
+        `).join("");
+
+        list.querySelectorAll("button[data-assessment-id]").forEach((button) => {
+          button.addEventListener("click", () => loadAssessment(button.dataset.assessmentId));
+        });
+
+        if (selectId) {
+          await loadAssessment(selectId);
+        }
+      } catch (error) {
+        setMessage("appMessage", "error", error.message);
+      }
+    }
+
+    async function loadAssessment(id) {
+      try {
+        const data = await request(`/api/assessments/${encodeURIComponent(id)}`, {
+          headers: authHeaders()
+        });
+
+        currentAssessment = data.assessment;
+        renderAssessment(currentAssessment);
+      } catch (error) {
+        setMessage("appMessage", "error", error.message);
+      }
+    }
+
+    function renderAssessment(assessment) {
+      const finalized = assessment.status === "finalized";
+      const readonly = finalized || !canEdit();
+
+      $("detailPanel").innerHTML = `
+        <h2>
+          ${escapeHtml(assessment.subject.productName || "Conformance-Prüfung")}
+          <span class="badge ${assessment.status}">${escapeHtml(assessment.status)}</span>
+        </h2>
+
+        <p class="hint">
+          Assessment-ID: <code>${escapeHtml(assessment.id)}</code><br>
+          Erstellt: ${escapeHtml(assessment.createdAt)}<br>
+          Aktualisiert: ${escapeHtml(assessment.updatedAt)}
+        </p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="implementationDid">Implementation DID</label>
+            <input id="implementationDid" ${readonly ? "disabled" : ""} value="${escapeHtml(assessment.subject.implementationDid)}">
+          </div>
+          <div class="field">
+            <label for="productName">Produktname</label>
+            <input id="productName" ${readonly ? "disabled" : ""} value="${escapeHtml(assessment.subject.productName)}">
+          </div>
+          <div class="field">
+            <label for="productVersion">Produktversion</label>
+            <input id="productVersion" ${readonly ? "disabled" : ""} value="${escapeHtml(assessment.subject.productVersion)}">
+          </div>
+          <div class="field">
+            <label for="deployment">Deployment</label>
+            <input id="deployment" ${readonly ? "disabled" : ""} value="${escapeHtml(assessment.subject.deployment)}">
+          </div>
+          <div class="field">
+            <label for="rwpVersion">RWP-Version</label>
+            <input id="rwpVersion" ${readonly ? "disabled" : ""} value="${escapeHtml(assessment.rwpVersion)}">
+          </div>
+          <div class="field">
+            <label for="expiresAt">Gültig bis (optional)</label>
+            <input id="expiresAt" type="datetime-local" ${readonly ? "disabled" : ""} value="${assessment.expiresAt ? escapeHtml(assessment.expiresAt.slice(0, 16)) : ""}">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="profiles">Profile</label>
+          <input id="profiles" ${readonly ? "disabled" : ""} value="${escapeHtml((assessment.claims[0]?.profiles || []).join(", "))}">
+        </div>
+
+        <div class="field">
+          <label for="claimedRoles">Beanspruchte RWP-Rollen</label>
+          <input id="claimedRoles" ${readonly ? "disabled" : ""} value="${escapeHtml((assessment.claims[0]?.roles || []).join(", "))}">
+        </div>
+
+        <div class="field">
+          <label for="assessmentEvidence">Assessment-Evidenz / Prüfbericht</label>
+          <textarea id="assessmentEvidence" ${readonly ? "disabled" : ""} placeholder="Referenz, URL, Testbericht oder Beschreibung der Evidenz">${escapeHtml(assessment.evidence || "")}</textarea>
+        </div>
+
+        <h3>Pflichttests</h3>
+        <p class="hint">
+          Alle Tests müssen bestanden sein. Evidenz kann als Beschreibung, Referenz oder
+          Testartefakt hinterlegt werden. Die BAR-App bindet den Evidenztext beim
+          Finalisieren über einen SHA-256-Hash an den ConformanceRecord.
+        </p>
+
+        <div id="tests">
+          ${assessment.tests.map((test) => `
+            <article class="test-card">
+              <h4>${escapeHtml(test.title)} <span class="badge ${escapeHtml(test.result)}">${escapeHtml(test.result)}</span></h4>
+              <p><strong>Anforderung:</strong> ${escapeHtml(test.requirement)}</p>
+              <p><strong>Positiv:</strong> ${escapeHtml(test.positiveCase)}</p>
+              <p><strong>Negativ:</strong> ${escapeHtml(test.negativeCase)}</p>
+
+              <div class="test-grid">
+                <div>
+                  <label for="result-${escapeHtml(test.id)}">Ergebnis</label>
+                  <select id="result-${escapeHtml(test.id)}" data-test-result="${escapeHtml(test.id)}" ${readonly ? "disabled" : ""}>
+                    <option value="not-tested" ${test.result === "not-tested" ? "selected" : ""}>not-tested</option>
+                    <option value="passed" ${test.result === "passed" ? "selected" : ""}>passed</option>
+                    <option value="failed" ${test.result === "failed" ? "selected" : ""}>failed</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="evidence-${escapeHtml(test.id)}">Evidenz</label>
+                  <textarea id="evidence-${escapeHtml(test.id)}" data-test-evidence="${escapeHtml(test.id)}" ${readonly ? "disabled" : ""} placeholder="Testfall, API-Resultat, Prüfschritt oder Artefakt">${escapeHtml(test.evidence || "")}</textarea>
+                </div>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+
+        <div class="button-row">
+          ${!finalized && canEdit() ? `<button class="secondary" id="saveAssessmentButton">Assessment speichern</button>` : ""}
+          ${!finalized && canFinalize() ? `<button class="primary" id="finalizeAssessmentButton">ConformanceRecord finalisieren</button>` : ""}
+          ${assessment.conformanceRecordDid ? `<button class="secondary" id="showRecordButton">ConformanceRecord anzeigen</button>` : ""}
+        </div>
+
+        <div id="recordPanel"></div>
+      `;
+
+      if (!finalized && canEdit()) {
+        $("saveAssessmentButton").addEventListener("click", saveAssessment);
+      }
+
+      if (!finalized && canFinalize()) {
+        $("finalizeAssessmentButton").addEventListener("click", finalizeAssessment);
+      }
+
+      if (assessment.conformanceRecordDid) {
+        $("showRecordButton").addEventListener("click", () => loadConformanceRecord(assessment.conformanceRecordDid));
+      }
+    }
+
+    function assessmentPayloadFromForm() {
+      const profiles = $("profiles").value
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      const roles = $("claimedRoles").value
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      const tests = currentAssessment.tests.map((test) => ({
+        id: test.id,
+        result: $(`result-${test.id}`).value,
+        evidence: $(`evidence-${test.id}`).value
+      }));
+
+      const expiresLocal = $("expiresAt").value;
+
+      return {
+        subject: {
+          implementationDid: $("implementationDid").value.trim(),
+          productName: $("productName").value.trim(),
+          productVersion: $("productVersion").value.trim(),
+          deployment: $("deployment").value.trim()
+        },
+        rwpVersion: $("rwpVersion").value.trim(),
+        claims: [{ profiles, roles }],
+        evidence: $("assessmentEvidence").value.trim(),
+        expiresAt: expiresLocal ? new Date(expiresLocal).toISOString() : null,
+        tests
+      };
+    }
+
+    async function saveAssessment() {
+      try {
+        const data = await request(`/api/assessments/${encodeURIComponent(currentAssessment.id)}`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify(assessmentPayloadFromForm())
+        });
+
+        currentAssessment = data.assessment;
+        setMessage("appMessage", "success", "Assessment gespeichert.");
+        renderAssessment(currentAssessment);
+        loadAssessments();
+      } catch (error) {
+        setMessage("appMessage", "error", error.message);
+      }
+    }
+
+    async function finalizeAssessment() {
+      try {
+        await saveAssessment();
+
+        const data = await request(`/api/assessments/${encodeURIComponent(currentAssessment.id)}/finalize`, {
+          method: "POST",
+          headers: authHeaders()
+        });
+
+        currentAssessment = data.assessment;
+        setMessage("appMessage", "success", "ConformanceRecord wurde finalisiert.");
+        renderAssessment(currentAssessment);
+        loadAssessments();
+        renderConformanceRecord(data.conformanceRecord);
+      } catch (error) {
+        setMessage("appMessage", "error", error.message);
+      }
+    }
+
+    async function loadConformanceRecord(did) {
+      try {
+        const data = await request(`/api/conformance-records/${encodeURIComponent(did)}`, {
+          headers: authHeaders()
+        });
+
+        renderConformanceRecord(data.conformanceRecord);
+      } catch (error) {
+        setMessage("appMessage", "error", error.message);
+      }
+    }
+
+    function renderConformanceRecord(record) {
+      $("recordPanel").innerHTML = `
+        <h3>Finalisierter ConformanceRecord</h3>
+        <p class="hint">
+          DID: <code>${escapeHtml(record.did)}</code><br>
+          Snapshot-Hash: <code>${escapeHtml(record.metadata.snapshotHash)}</code>
+        </p>
+        <pre>${escapeHtml(JSON.stringify(record, null, 2))}</pre>
+      `;
+    }
+
+    function renderNewAssessment() {
+      currentAssessment = null;
+
+      $("detailPanel").innerHTML = `
+        <h2>Neue Conformance-Prüfung</h2>
+        <p class="hint">
+          Die neue Akte wird zunächst als Draft erstellt. Trage anschliessend die
+          Testresultate und Evidenz ein; ein BAR Attester kann den daraus
+          entstehenden ConformanceRecord finalisieren.
+        </p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="newImplementationDid">Implementation DID</label>
+            <input id="newImplementationDid" value="did:rwp:poc-fragestunde:antwortmanagement">
+          </div>
+          <div class="field">
+            <label for="newProductName">Produktname</label>
+            <input id="newProductName" value="Antwortmanagement">
+          </div>
+          <div class="field">
+            <label for="newProductVersion">Produktversion</label>
+            <input id="newProductVersion" value="0.1.0">
+          </div>
+          <div class="field">
+            <label for="newDeployment">Deployment</label>
+            <input id="newDeployment" value="poc-local">
+          </div>
+          <div class="field">
+            <label for="newRwpVersion">RWP-Version</label>
+            <input id="newRwpVersion" value="0.0.4">
+          </div>
+          <div class="field">
+            <label for="newExpiresAt">Gültig bis (optional)</label>
+            <input id="newExpiresAt" type="datetime-local">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="newProfiles">Profile</label>
+          <input id="newProfiles" value="RWP Information Record Conformant">
+        </div>
+
+        <div class="field">
+          <label for="newClaimedRoles">Beanspruchte RWP-Rollen</label>
+          <input id="newClaimedRoles" value="producer, custodian">
+        </div>
+
+        <div class="field">
+          <label for="newEvidence">Assessment-Evidenz</label>
+          <textarea id="newEvidence" placeholder="Kann später ergänzt werden."></textarea>
+        </div>
+
+        <div class="button-row">
+          <button class="primary" id="createAssessmentButton">Draft anlegen</button>
+        </div>
+      `;
+
+      $("createAssessmentButton").addEventListener("click", createAssessment);
+    }
+
+    async function createAssessment() {
+      try {
+        const profiles = $("newProfiles").value
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+
+        const roles = $("newClaimedRoles").value
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean);
+
+        const expiresLocal = $("newExpiresAt").value;
+
+        const data = await request("/api/assessments", {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({
+            subject: {
+              implementationDid: $("newImplementationDid").value.trim(),
+              productName: $("newProductName").value.trim(),
+              productVersion: $("newProductVersion").value.trim(),
+              deployment: $("newDeployment").value.trim()
+            },
+            rwpVersion: $("newRwpVersion").value.trim(),
+            claims: [{ profiles, roles }],
+            evidence: $("newEvidence").value.trim(),
+            expiresAt: expiresLocal ? new Date(expiresLocal).toISOString() : null
+          })
+        });
+
+        setMessage("appMessage", "success", "Draft-Assessment wurde erstellt.");
+        await loadAssessments(data.assessment.id);
+      } catch (error) {
+        setMessage("appMessage", "error", error.message);
+      }
+    }
+
+    $("loginButton").addEventListener("click", login);
+    $("newAssessmentButton").addEventListener("click", renderNewAssessment);
+    $("reloadButton").addEventListener("click", () => loadAssessments());
+
+    const savedSession = sessionStorage.getItem(sessionKey);
+
+    if (savedSession) {
+      try {
+        session = JSON.parse(savedSession);
+        showApplication();
+      } catch {
+        sessionStorage.removeItem(sessionKey);
+      }
+    }
+  </script>
+</body>
+</html>

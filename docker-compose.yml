@@ -96,6 +96,13 @@ services:
     networks:
       - poc_network
 
+  bar-backend:
+    build:
+      context: ./apps/bar/backend
+    environment:
+      PORT: 3000
+    ports:
+      - "3004:3000"
 
   nginx:
     image: nginx:alpine
