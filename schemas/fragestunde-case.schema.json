@@ -104,10 +104,14 @@
         "recordDid": { "type": "string", "pattern": "^did:rwp:" },
         "targetField": {
           "type": "string",
-          "enum": ["result", "decision"],
+          "enum": ["process", "result", "decision"],
           "description": "Wohin der Link wandert, sobald das referenzierte Record finalisiert wird."
         },
-        "role": { "type": "string" }
+        "role": { "type": "string" },
+        "recordType": {
+          "type": "string",
+          "description": "Konkreter Typ des noch nicht finalisierten Ziel-Records, z. B. MiniChat oder TeamsChat."
+        }
       },
       "additionalProperties": false
     }
