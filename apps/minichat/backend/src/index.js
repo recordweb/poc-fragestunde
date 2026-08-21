@@ -174,6 +174,20 @@ app.post("/api/work-orders", async (req, res, next) => {
   }
 });
 
+app.get("/api/conversations", async (_req, res, next) => {
+  try {
+    const result = await pool.query(`
+      SELECT *
+      FROM minichat_conversations
+      ORDER BY updated_at DESC
+    `);
+
+    return res.json(result.rows.map(mapConversation));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.get("/api/conversations/:conversationId", async (req, res, next) => {
   try {
     const result = await pool.query(
