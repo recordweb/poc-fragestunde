@@ -14,7 +14,7 @@
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
 
 const DID_RESOLVER_PATHS = {
-  b7d4c810: "/fragenmanagement/did",
+  a3f9e21c: "/fragenmanagement/did",
   s73f42a3: "/sox/did"
 };
 
