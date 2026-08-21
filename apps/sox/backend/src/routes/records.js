@@ -312,13 +312,17 @@ router.post("/", async (req, res, next) => {
 
     const createdRecord = mapRecord(insertResult.rows[0]);
 
-    res
-      .status(201)
-      .location(`/sox/api/records/${createdRecord.id}`)
-      .json(createdRecord);
-
     const delivery = await tryDeliverWorkOrder(createdRecord);
-    await updateWorkOrderStatus(createdRecord.id, delivery);
+
+    const recordWithWorkOrderStatus = await updateWorkOrderStatus(
+      createdRecord.id,
+      delivery
+    );
+
+    return res
+      .status(201)
+      .location(`/sox/api/records/${recordWithWorkOrderStatus.id}`)
+      .json(recordWithWorkOrderStatus);
   } catch (error) {
     next(error);
   }
