@@ -302,17 +302,59 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
     return res.status(409).json({ error: "Nur Draft-Cases koennen finalisiert werden" });
   }
 
-  const payload = record.payload;
-  if ((payload.workingLinks || []).length > 0) {
+  const payload = structuredClone(record.payload);
+  const unresolvedWorkingLinks = [];
+
+  for (const workingLink of payload.workingLinks || []) {
+    const linkedRecord = await resolveRecord(workingLink.recordDid);
+
+    if (
+      !linkedRecord ||
+      linkedRecord.status !== "finalized" ||
+      !linkedRecord.snapshotHash
+    ) {
+      unresolvedWorkingLinks.push({
+        recordDid: workingLink.recordDid,
+        targetField: workingLink.targetField,
+        role: workingLink.role,
+        status: linkedRecord?.status || "not-resolvable"
+      });
+      continue;
+    }
+
+    const hardLink = {
+      type: "hard",
+      recordDid: workingLink.recordDid,
+      snapshotHash: linkedRecord.snapshotHash,
+      role: workingLink.role
+    };
+
+    if (workingLink.targetField === "decision") {
+      payload.decision = hardLink;
+    } else {
+      payload[workingLink.targetField] = [
+        ...(payload[workingLink.targetField] || []),
+        hardLink
+      ];
+    }
+  }
+
+  payload.workingLinks = unresolvedWorkingLinks.map((link) => ({
+    type: "working",
+    recordDid: link.recordDid,
+    targetField: link.targetField,
+    role: link.role
+  }));
+
+  payload.merkleRoot = computeMerkleRoot(collectHardHashes(payload));
+
+  if (payload.workingLinks.length > 0) {
     return res.status(409).json({
       error: "Case kann erst finalisiert werden, wenn alle verlinkten Records finalisiert sind",
-      openWorkingReferences: payload.workingLinks.map((link) => ({
-        recordDid: link.recordDid,
-        targetField: link.targetField,
-        role: link.role
-      }))
+      openWorkingReferences: unresolvedWorkingLinks
     });
   }
+
   if (!payload.result || payload.result.length < 1) {
     return res.status(409).json({ error: "Case benoetigt mindestens ein Result (die finalisierte Antwort)" });
   }

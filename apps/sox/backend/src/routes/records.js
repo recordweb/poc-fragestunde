@@ -22,6 +22,7 @@ function mapRecord(row) {
     version: row.version,
     title: row.title,
     payload: row.payload,
+    snapshotHash: row.snapshot_hash || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -550,9 +551,18 @@ router.get("/:id", async (req, res, next) => {
   try {
     const result = await pool.query(
       `
-      SELECT *
-      FROM sox_records
-      WHERE id = $1
+      SELECT
+        r.*,
+        latest.snapshot_hash
+      FROM sox_records r
+      LEFT JOIN LATERAL (
+        SELECT snapshot_hash
+        FROM sox_record_snapshots
+        WHERE record_id = r.id
+        ORDER BY version DESC
+        LIMIT 1
+      ) latest ON true
+      WHERE r.id = $1
       `,
       [req.params.id]
     );
