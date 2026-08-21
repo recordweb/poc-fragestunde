@@ -154,45 +154,48 @@ async function tryDeliverWorkOrder(record) {
 }
 
 async function updateWorkOrderStatus(recordId, delivery) {
-  const result = await pool.query(
+  const recordResult = await pool.query(
+    `
+    SELECT *
+    FROM sox_records
+    WHERE id = $1
+    `,
+    [recordId]
+  );
+
+  if (recordResult.rowCount === 0) {
+    throw new Error(`SoX record not found: ${recordId}`);
+  }
+
+  const record = mapRecord(recordResult.rows[0]);
+
+  const payload = {
+    ...record.payload,
+    source: {
+      ...(record.payload.source || {}),
+      workOrderStatus: delivery.status,
+      workOrderError: delivery.error,
+      conversationId: delivery.conversationId,
+      workOrderDeliveredAt: delivery.deliveredAt
+    }
+  };
+
+  const updatedResult = await pool.query(
     `
     UPDATE sox_records
     SET
-      payload = jsonb_set(
-        jsonb_set(
-          jsonb_set(
-            jsonb_set(
-              payload,
-              '{source,workOrderStatus}',
-              to_jsonb($1::text),
-              true
-            ),
-            '{source,workOrderError}',
-            to_jsonb($2::text),
-            true
-          ),
-          '{source,conversationId}',
-          to_jsonb($3::text),
-          true
-        ),
-        '{source,workOrderDeliveredAt}',
-        to_jsonb($4::text),
-        true
-      ),
+      payload = $1::jsonb,
       updated_at = NOW()
-    WHERE id = $5
+    WHERE id = $2
     RETURNING *
     `,
     [
-      delivery.status,
-      delivery.error,
-      delivery.conversationId,
-      delivery.deliveredAt,
+      JSON.stringify(payload),
       recordId
     ]
   );
 
-  return mapRecord(result.rows[0]);
+  return mapRecord(updatedResult.rows[0]);
 }
 
 function isValidSubmission(body, record) {
@@ -312,12 +315,21 @@ router.post("/", async (req, res, next) => {
 
     const createdRecord = mapRecord(insertResult.rows[0]);
 
-    const delivery = await tryDeliverWorkOrder(createdRecord);
+    let recordWithWorkOrderStatus = createdRecord;
 
-    const recordWithWorkOrderStatus = await updateWorkOrderStatus(
-      createdRecord.id,
-      delivery
-    );
+    try {
+      const delivery = await tryDeliverWorkOrder(createdRecord);
+
+      recordWithWorkOrderStatus = await updateWorkOrderStatus(
+        createdRecord.id,
+        delivery
+      );
+    } catch (workOrderError) {
+      console.error(
+        `WorkOrder status update failed for ${createdRecord.did}`,
+        workOrderError
+      );
+    }
 
     return res
       .status(201)
