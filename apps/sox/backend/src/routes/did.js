@@ -8,6 +8,8 @@ const PUBLIC_BASE_URL =
 
 router.get("/:id", async (req, res, next) => {
   try {
+    const requestedIdentifier = decodeURIComponent(req.params.id);
+
     const result = await pool.query(
       `
       SELECT
@@ -28,9 +30,9 @@ router.get("/:id", async (req, res, next) => {
         ORDER BY version DESC
         LIMIT 1
       ) latest ON true
-      WHERE r.id = $1
+      WHERE r.id = $1 OR r.did = $1
       `,
-      [req.params.id]
+      [requestedIdentifier]
     );
 
     if (result.rowCount === 0) {
