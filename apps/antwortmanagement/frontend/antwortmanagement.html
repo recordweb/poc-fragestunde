@@ -439,7 +439,7 @@ function renderCases(cases) {
     return;
   }
   cases.forEach(c => {
-    const bereitZurFinalisierung = c.state === "draft" && (c.payload.workingLinks || []).length === 0 && (c.payload.result || []).length > 0;
+    const bereitZurFinalisierung = c.state === "draft";
     const div = document.createElement("div");
     div.className = "record " + c.state;
     div.innerHTML = `
@@ -471,10 +471,12 @@ function renderCases(cases) {
       </div>
 
       ${c.state === "draft" ? `
-        <button class="finalizeCaseBtn" data-did="${c.did}" ${bereitZurFinalisierung ? "" : "disabled"}>
+        <button class="finalizeCaseBtn" data-did="${c.did}">
           Case finalisieren
         </button>
-        ${!bereitZurFinalisierung ? '<span class="badge">erst möglich, wenn Antwort und alle verknüpften Chat-Records finalisiert sind</span>' : ""}
+        <span class="badge">
+          prüft beim Klick alle verknüpften Records
+        </span>
       ` : ""}
 
       <details>

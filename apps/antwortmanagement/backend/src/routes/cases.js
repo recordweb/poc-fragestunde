@@ -295,15 +295,22 @@ router.post(/^\/(.+)\/chat-records$/, async (req, res) => {
 router.put(/^\/(.+)\/finalize$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
   const record = await getFullRecord(did);
+
   if (!record || record.record_type !== RECORD_TYPE_CASE) {
-    return res.status(404).json({ error: "Case nicht gefunden" });
+    return res.status(404).json({
+      error: "Case nicht gefunden"
+    });
   }
+
   if (record.state !== "draft") {
-    return res.status(409).json({ error: "Nur Draft-Cases koennen finalisiert werden" });
+    return res.status(409).json({
+      error: "Nur Draft-Cases koennen finalisiert werden"
+    });
   }
 
   const payload = structuredClone(record.payload);
-  const unresolvedWorkingLinks = [];
+  const resolvedWorkingLinks = [];
+  const openWorkingReferences = [];
 
   for (const workingLink of payload.workingLinks || []) {
     const linkedRecord = await resolveRecord(workingLink.recordDid);
@@ -313,7 +320,7 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
       linkedRecord.status !== "finalized" ||
       !linkedRecord.snapshotHash
     ) {
-      unresolvedWorkingLinks.push({
+      openWorkingReferences.push({
         recordDid: workingLink.recordDid,
         targetField: workingLink.targetField,
         role: workingLink.role,
@@ -322,6 +329,20 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
       continue;
     }
 
+    resolvedWorkingLinks.push({
+      workingLink,
+      record: linkedRecord
+    });
+  }
+
+  if (openWorkingReferences.length > 0) {
+    return res.status(409).json({
+      error: "Case kann erst finalisiert werden, wenn alle verlinkten Records finalisiert und auflösbar sind",
+      openWorkingReferences
+    });
+  }
+
+  for (const { workingLink, record: linkedRecord } of resolvedWorkingLinks) {
     const hardLink = {
       type: "hard",
       recordDid: workingLink.recordDid,
@@ -339,41 +360,54 @@ router.put(/^\/(.+)\/finalize$/, async (req, res) => {
     }
   }
 
-  payload.workingLinks = unresolvedWorkingLinks.map((link) => ({
-    type: "working",
-    recordDid: link.recordDid,
-    targetField: link.targetField,
-    role: link.role
-  }));
-
+  payload.workingLinks = [];
   payload.merkleRoot = computeMerkleRoot(collectHardHashes(payload));
 
-  if (payload.workingLinks.length > 0) {
-    return res.status(409).json({
-      error: "Case kann erst finalisiert werden, wenn alle verlinkten Records finalisiert sind",
-      openWorkingReferences: unresolvedWorkingLinks
+  const payloadCheck = validatePayload(RECORD_TYPE_CASE, payload);
+
+  if (!payloadCheck.valid) {
+    return res.status(422).json({
+      error: "Aktualisierter Case-Payload ungueltig",
+      details: payloadCheck.errors
     });
   }
 
   if (!payload.result || payload.result.length < 1) {
-    return res.status(409).json({ error: "Case benoetigt mindestens ein Result (die finalisierte Antwort)" });
+    return res.status(409).json({
+      error: "Case benoetigt mindestens ein Result (die finalisierte Antwort)"
+    });
   }
 
   const expectedRoot = computeMerkleRoot(collectHardHashes(payload));
+
   if (expectedRoot !== payload.merkleRoot) {
-    return res.status(409).json({ error: "Merkle-Root stimmt nicht ueberein", expected: expectedRoot, stored: payload.merkleRoot });
+    return res.status(409).json({
+      error: "Merkle-Root stimmt nicht ueberein",
+      expected: expectedRoot,
+      stored: payload.merkleRoot
+    });
   }
 
   const finalizedSnapshot = await createSnapshot({
-    did, parents: [record.snapshot_hash].filter(Boolean),
-    state: "finalized", recordType: record.record_type,
-    schemaVersion: record.schema_version, owner: record.owner,
-    payload, payloadFormat: "application/json"
+    did,
+    parents: [record.snapshot_hash].filter(Boolean),
+    state: "finalized",
+    recordType: record.record_type,
+    schemaVersion: record.schema_version,
+    owner: record.owner,
+    payload,
+    payloadFormat: "application/json"
   });
-  await setCurrentSnapshot(did, finalizedSnapshot.id);
-  await logEvent(`Case finalisiert: ${did} (Merkle-Root: ${finalizedSnapshot.snapshot_hash})`);
 
-  res.json(await enrichCase(await getFullRecord(did)));
+  await setCurrentSnapshot(did, finalizedSnapshot.id);
+
+  await logEvent(
+    `Case finalisiert: ${did} (Merkle-Root: ${finalizedSnapshot.snapshot_hash})`
+  );
+
+  return res.json(
+    await enrichCase(await getFullRecord(did))
+  );
 });
 
 // ---------- Vollstaendigkeitspruefung (RWP 8.6) ----------
