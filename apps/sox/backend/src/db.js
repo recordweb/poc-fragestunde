@@ -15,7 +15,7 @@ async function initializeDatabase() {
       did TEXT NOT NULL UNIQUE,
       record_type TEXT NOT NULL,
       status TEXT NOT NULL,
-      version INTEGER NOT NULL DEFAULT 1,
+      version INTEGER NOT NULL DEFAULT 0,
       title TEXT NOT NULL,
       payload JSONB NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -34,20 +34,42 @@ async function initializeDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS sox_record_snapshots (
+      snapshot_hash TEXT PRIMARY KEY,
+      record_id TEXT NOT NULL REFERENCES sox_records(id) ON DELETE CASCADE,
+      did TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      state TEXT NOT NULL,
+      parents JSONB NOT NULL,
+      payload JSONB NOT NULL,
+      payload_hash TEXT NOT NULL,
+      payload_format TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      finalized_at TIMESTAMPTZ NOT NULL,
+      UNIQUE (record_id, version)
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS sox_record_snapshots_record_id_idx
+    ON sox_record_snapshots (record_id, version DESC)
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS sox_settings (
       setting_key TEXT PRIMARY KEY,
       setting_value TEXT NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
-    `);
+  `);
 
-    await pool.query(`
+  await pool.query(`
     INSERT INTO sox_settings (setting_key, setting_value)
     VALUES
       ('miniChatEndpoint', ''),
       ('teamsChatEndpoint', '')
     ON CONFLICT (setting_key) DO NOTHING
-    `);
+  `);
 }
 
 module.exports = {

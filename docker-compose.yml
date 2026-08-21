@@ -93,6 +93,26 @@ services:
       POSTGRES_USER: poc_user
       POSTGRES_PASSWORD: poc_recordweb
       SOX_DID_NAMESPACE: s73f42a3
+      PUBLIC_BASE_URL: https://vps.recordweb.dev
+    networks:
+      - poc_network
+
+  minichat:
+    build:
+      context: ./apps/minichat/backend
+    container_name: poc-minichat
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PORT: 3000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: poc_db
+      POSTGRES_USER: poc_user
+      POSTGRES_PASSWORD: poc_recordweb
+      PUBLIC_BASE_URL: https://vps.recordweb.dev
+      MINICHAT_SYSTEM_ENDPOINT: https://vps.recordweb.dev/minichat/
     networks:
       - poc_network
 

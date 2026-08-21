@@ -11,28 +11,28 @@ function createDraftRecord({ recordType, title, caseReference, chatEndpoint }) {
   const did = createDid(id);
   const now = new Date().toISOString();
 
-  const payload = {
-    title,
-    source: {
-      system: recordType,
-      conversationId: id,
-      chatEndpoint: chatEndpoint || null
-    },
-    caseReference,
-    conversation: {
-      participants: [],
-      messages: []
-    }
-  };
-
   return {
     id,
     did,
     recordType,
     status: "draft",
-    version: 1,
+    version: 0,
     title,
-    payload,
+    payload: {
+      title,
+      source: {
+        system: recordType,
+        chatEndpoint,
+        conversationId: null,
+        workOrderStatus: "pending",
+        workOrderError: null
+      },
+      caseReference,
+      conversation: {
+        participants: [],
+        messages: []
+      }
+    },
     createdAt: now,
     updatedAt: now
   };

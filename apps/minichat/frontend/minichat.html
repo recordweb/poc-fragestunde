@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniChat · RecordWeb PoC</title>
+  <style>
+    body {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 16px;
+      color: #1a1a2e;
+      font-family: system-ui, sans-serif;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    .card {
+      margin-bottom: 16px;
+      padding: 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    label,
+    input,
+    textarea {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    label {
+      margin: 10px 0 4px;
+      font-weight: 600;
+    }
+
+    input,
+    textarea {
+      padding: 8px;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    button {
+      margin: 10px 6px 0 0;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .meta,
+    .status {
+      color: #666;
+      font-size: 0.85rem;
+      overflow-wrap: anywhere;
+    }
+
+    .message {
+      margin: 10px 0;
+      padding: 10px;
+      border-left: 3px solid #4169a1;
+      border-radius: 4px;
+      background: #f6f8fb;
+    }
+
+    .message-meta {
+      margin-bottom: 4px;
+      color: #555;
+      font-size: 0.8rem;
+    }
+
+    .error {
+      color: #9b1c1c;
+    }
+
+    .success {
+      color: #1d6b37;
+    }
+  </style>
+</head>
+<body>
+  <h1>MiniChat</h1>
+  <p class="meta">
+    Minimaler PoC für die Übergabe eines vollständigen Chatverlaufs an SoX.
+  </p>
+
+  <section class="card">
+    <label for="conversationId">Conversation-ID</label>
+    <input
+      id="conversationId"
+      maxlength="3"
+      autocomplete="off"
+      placeholder="z. B. K7M"
+    >
+    <button id="loadConversationBtn" type="button">Chat laden</button>
+    <div id="loadStatus" class="status"></div>
+  </section>
+
+  <section id="chatView" class="hidden">
+    <section class="card">
+      <h2 id="conversationTitle">Chat</h2>
+      <div id="conversationMeta" class="meta"></div>
+      <div id="messages"></div>
+    </section>
+
+    <section class="card">
+      <label for="authorName">Name</label>
+      <input id="authorName" maxlength="100" placeholder="Ihr Name">
+
+      <label for="messageText">Nachricht</label>
+      <textarea
+        id="messageText"
+        maxlength="5000"
+        placeholder="Nachricht eingeben"
+      ></textarea>
+
+      <button id="sendMessageBtn" type="button">Senden</button>
+      <button id="finalizeBtn" type="button">An SoX finalisieren</button>
+      <div id="chatStatus" class="status"></div>
+    </section>
+  </section>
+
+  <script>
+    const API_BASE = "/minichat/api";
+
+    const conversationIdInput = document.getElementById("conversationId");
+    const loadConversationButton =
+      document.getElementById("loadConversationBtn");
+    const loadStatus = document.getElementById("loadStatus");
+    const chatView = document.getElementById("chatView");
+    const conversationTitle = document.getElementById("conversationTitle");
+    const conversationMeta = document.getElementById("conversationMeta");
+    const messagesElement = document.getElementById("messages");
+    const authorNameInput = document.getElementById("authorName");
+    const messageTextInput = document.getElementById("messageText");
+    const sendMessageButton = document.getElementById("sendMessageBtn");
+    const finalizeButton = document.getElementById("finalizeBtn");
+    const chatStatus = document.getElementById("chatStatus");
+
+    let currentConversation = null;
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return value || "–";
+      }
+
+      return new Intl.DateTimeFormat("de-CH", {
+        dateStyle: "medium",
+        timeStyle: "medium"
+      }).format(date);
+    }
+
+    function renderConversation(conversation) {
+      currentConversation = conversation;
+      conversationIdInput.value = conversation.conversationId;
+      conversationTitle.textContent = conversation.title;
+      conversationMeta.innerHTML = `
+        Conversation-ID: <strong>${escapeHtml(conversation.conversationId)}</strong><br>
+        SoX-Record-DID: ${escapeHtml(conversation.recordDid)}<br>
+        Letzte Übergabe an SoX: ${escapeHtml(
+          conversation.lastSubmittedAt
+            ? formatDate(conversation.lastSubmittedAt)
+            : "noch keine"
+        )}
+      `;
+
+      if (!conversation.messages.length) {
+        messagesElement.innerHTML = "<p class=\"meta\">Noch keine Nachrichten.</p>";
+      } else {
+        messagesElement.innerHTML = conversation.messages.map((message) => `
+          <article class="message">
+            <div class="message-meta">
+              ${escapeHtml(message.author.displayName)} ·
+              ${escapeHtml(formatDate(message.createdAt))}
+            </div>
+            <div>${escapeHtml(message.content.text)}</div>
+          </article>
+        `).join("");
+      }
+
+      chatView.classList.remove("hidden");
+    }
+
+    async function loadConversation() {
+      const conversationId = conversationIdInput.value.trim();
+
+      if (!/^[A-Za-z0-9]{3}$/.test(conversationId)) {
+        loadStatus.textContent = "Bitte eine dreistellige Conversation-ID eingeben.";
+        loadStatus.className = "status error";
+        return;
+      }
+
+      loadStatus.textContent = "Chat wird geladen…";
+      loadStatus.className = "status";
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/conversations/${encodeURIComponent(conversationId)}`
+        );
+
+        const body = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(body.error || `HTTP ${response.status}`);
+        }
+
+        renderConversation(body);
+        loadStatus.textContent = "";
+      } catch (error) {
+        chatView.classList.add("hidden");
+        loadStatus.textContent = `Chat konnte nicht geladen werden: ${error.message}`;
+        loadStatus.className = "status error";
+      }
+    }
+
+    async function sendMessage() {
+      if (!currentConversation) return;
+
+      const authorName = authorNameInput.value.trim();
+      const text = messageTextInput.value.trim();
+
+      if (!authorName || !text) {
+        chatStatus.textContent = "Name und Nachricht sind erforderlich.";
+        chatStatus.className = "status error";
+        return;
+      }
+
+      chatStatus.textContent = "Nachricht wird gespeichert…";
+      chatStatus.className = "status";
+      sendMessageButton.disabled = true;
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/conversations/${encodeURIComponent(
+            currentConversation.conversationId
+          )}/messages`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ authorName, text })
+          }
+        );
+
+        const body = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(body.error || `HTTP ${response.status}`);
+        }
+
+        messageTextInput.value = "";
+        renderConversation(body);
+        chatStatus.textContent = "Nachricht gespeichert.";
+        chatStatus.className = "status success";
+      } catch (error) {
+        chatStatus.textContent = `Nachricht konnte nicht gespeichert werden: ${error.message}`;
+        chatStatus.className = "status error";
+      } finally {
+        sendMessageButton.disabled = false;
+      }
+    }
+
+    async function finalizeConversation() {
+      if (!currentConversation) return;
+
+      const confirmed = confirm(
+        "Den vollständigen aktuellen Chatverlauf an SoX übergeben und finalisieren?"
+      );
+
+      if (!confirmed) return;
+
+      chatStatus.textContent = "Vollständiger Chatverlauf wird an SoX übergeben…";
+      chatStatus.className = "status";
+      finalizeButton.disabled = true;
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/conversations/${encodeURIComponent(
+            currentConversation.conversationId
+          )}/finalize`,
+          {
+            method: "POST"
+          }
+        );
+
+        const body = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(body.error || `HTTP ${response.status}`);
+        }
+
+        renderConversation(body.conversation);
+        chatStatus.textContent =
+          `An SoX übergeben: Version ${body.submission.version}, ` +
+          `Snapshot ${body.submission.snapshotHash}.`;
+        chatStatus.className = "status success";
+      } catch (error) {
+        chatStatus.textContent =
+          `Übergabe an SoX fehlgeschlagen: ${error.message}`;
+        chatStatus.className = "status error";
+      } finally {
+        finalizeButton.disabled = false;
+      }
+    }
+
+    loadConversationButton.addEventListener("click", loadConversation);
+    sendMessageButton.addEventListener("click", sendMessage);
+    finalizeButton.addEventListener("click", finalizeConversation);
+
+    conversationIdInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        loadConversation();
+      }
+    });
+  </script>
+</body>
+</html>

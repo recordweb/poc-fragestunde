@@ -1,0 +1,16 @@
+{
+  "name": "poc-fragestunde-minichat-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal chat application demonstrating RecordWeb system integration",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
