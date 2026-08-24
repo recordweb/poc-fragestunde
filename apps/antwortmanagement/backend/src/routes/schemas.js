@@ -238,6 +238,18 @@ router.get("/fragestunde-antwort", async (_req, res, next) => {
   try {
     const bindings = await getActiveBindings();
 
+    return res.json(
+      createSchemaRecord(bindings)
+    );
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get("/fragestunde-antwort/admin", async (_req, res, next) => {
+  try {
+    const bindings = await getActiveBindings();
+
     return res.json({
       schema: getSchema(RESPONSE_SCHEMA_ID),
       schemaId: RESPONSE_SCHEMA_ID,
