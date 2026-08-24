@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "rwpSchemaVersion": "0.0.1",
-  "schemaId": "did:rwp:bk.admin.ch/schema/fragestunde-antwort",
+  "schemaId": "did:rwp:b7d4c810:schema:fragestunde-antwort",
   "displayName": "Fragestunde — Antwort",
   "description": "Die Antwort eines Bundesratsmitglieds auf eine parlamentarische Frage. Die Verlinkung zur Frage lebt nicht mehr im Antwort-Record selbst, sondern ausschliesslich im umschliessenden Fragestunde-Case (RWP CaseRecord, Kapitel 8) als trigger/result.",
   "allowedStates": ["draft", "finalized"],

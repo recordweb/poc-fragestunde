@@ -67,6 +67,32 @@ export async function initSchema() {
 
     CREATE INDEX IF NOT EXISTS idx_ldn_inbox_received ON ${SCHEMA}.ldn_inbox(received DESC);
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ${SCHEMA}.schema_conformance_bindings (
+      id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+      schema_id                   TEXT NOT NULL,
+      schema_file                 TEXT NOT NULL,
+      schema_hash                 TEXT NOT NULL,
+
+      conformance_record_did      TEXT NOT NULL,
+      conformance_snapshot_hash   TEXT NOT NULL,
+      conformance_resolver_url    TEXT,
+
+      status                      TEXT NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active', 'superseded')),
+
+      bound_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
+      bound_by                    TEXT NOT NULL,
+
+      UNIQUE (schema_id, schema_hash, conformance_record_did)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_schema_conformance_bindings_active
+      ON ${SCHEMA}.schema_conformance_bindings(schema_id, schema_hash)
+      WHERE status = 'active';
+  `);
 }
 
 export default pool;
