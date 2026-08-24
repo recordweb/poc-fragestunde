@@ -86,7 +86,7 @@ export async function initSchema() {
       bound_at                    TIMESTAMPTZ NOT NULL DEFAULT now(),
       bound_by                    TEXT NOT NULL,
 
-      UNIQUE (schema_id, schema_hash, conformance_record_did)
+      UNIQUE (schema_id, schema_hash, conformance_record_did, conformance_snapshot_hash)
     );
 
     CREATE INDEX IF NOT EXISTS idx_schema_conformance_bindings_active
