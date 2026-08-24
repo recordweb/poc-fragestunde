@@ -6,6 +6,37 @@ const router = express.Router();
 const PUBLIC_BASE_URL =
   process.env.PUBLIC_BASE_URL || "https://vps.recordweb.dev";
 
+/**
+ * @openapi
+ * /did/{did}:
+ *   get:
+ *     tags: [DID]
+ *     summary: BAR-DID auflösen
+ *     description: |
+ *       Löst eine DID eines finalisierten BAR-ConformanceRecords auf und liefert
+ *       ein DID-Dokument. Der `recordEndpoint` verweist auf die öffentliche,
+ *       maschinenlesbare RWP-Record-Repräsentation.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: did:rwp:ba31d45f:records:1bb42515-9fd8-4004-99ba-46637f7bba88
+ *     responses:
+ *       200:
+ *         description: DID-Dokument des finalisierten ConformanceRecords.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/DidDocument"
+ *       404:
+ *         description: DID ist unbekannt oder kein finalisierter BAR-Record.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
 router.get(/^\/(.+)$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
 

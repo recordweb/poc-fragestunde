@@ -1,11 +1,13 @@
 import crypto from "crypto";
 import cors from "cors";
 import express from "express";
+import swaggerUi from "swagger-ui-express";
 
 import pool, { initSchema } from "./db.js";
 import { persistFinalizedConformanceRecord } from "./conformanceStore.js";
 import didRouter from "./routes/did.js";
 import recordsRouter from "./routes/records.js";
+import { swaggerSpec } from "./swagger.js";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -22,6 +24,12 @@ const roles = ["bar-attester", "bar-auditor", "bar-viewer"];
 
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec)
+);
 
 function canonicalize(value) {
   if (Array.isArray(value)) {
@@ -293,6 +301,37 @@ async function getAssessment(id) {
   return rows[0] || null;
 }
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: BAR-Betriebsstatus abrufen
+ *     description: Liefert den Status der BAR-Conformance-Anwendung, ihre System-DID und den verwalteten RWP-Namespace.
+ *     responses:
+ *       200:
+ *         description: BAR-Anwendung ist erreichbar.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 service:
+ *                   type: string
+ *                   example: bar-conformance-authority
+ *                 implementationDid:
+ *                   type: string
+ *                   example: did:rwp:ba31d45f:systems:conformance-authority
+ *                 attesterDid:
+ *                   type: string
+ *                   example: did:rwp:ba31d45f:agents:bar-attester
+ *                 didNamespace:
+ *                   type: string
+ *                   example: ba31d45f
+ */
 app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
@@ -306,6 +345,38 @@ app.get("/health", (_req, res) => {
 app.use("/did", didRouter);
 app.use("/api/records", recordsRouter);
 
+/**
+ * @openapi
+ * /api/session:
+ *   post:
+ *     tags: [Session]
+ *     summary: BAR-PoC-Session anlegen
+ *     description: |
+ *       Erzeugt eine temporäre BAR-User-DID und bindet sie an eine gewählte
+ *       PoC-Rolle. Dies ist kein produktives IAM-Verfahren.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/BarSessionRequest"
+ *     responses:
+ *       201:
+ *         description: BAR-User-DID und Rolle wurden erzeugt.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: "#/components/schemas/BarUser"
+ *       400:
+ *         description: Name oder BAR-Rolle fehlt bzw. ist ungültig.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
 app.post("/api/session", (req, res) => {
   const displayName = String(req.body?.displayName || "").trim();
   const role = String(req.body?.role || "").trim();
@@ -337,6 +408,46 @@ app.post("/api/session", (req, res) => {
   });
 });
 
+/**
+ * @openapi
+ * /api/assessments:
+ *   get:
+ *     tags: [Assessments]
+ *     summary: Conformance-Assessments auflisten
+ *     description: Liefert alle BAR-Assessment-Akten, inklusive Drafts und finalisierten Assessments.
+ *     security:
+ *       - RwpRoleHeader: []
+ *         RwpUserDidHeader: []
+ *     parameters:
+ *       - in: header
+ *         name: x-rwp-role
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [bar-attester, bar-auditor, bar-viewer]
+ *       - in: header
+ *         name: x-rwp-user-did
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: did:rwp:ba31d45f:agents:bar-user:nik:123e4567-e89b-12d3-a456-426614174000
+ *     responses:
+ *       200:
+ *         description: Liste der Assessment-Akten.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assessments:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/Assessment"
+ *       401:
+ *         description: Fehlende oder ungültige BAR-Rolle bzw. User-DID.
+ *       403:
+ *         description: Rolle darf Assessments nicht lesen.
+ */
 app.get(
   "/api/assessments",
   requireRole("bar-attester", "bar-auditor", "bar-viewer"),
@@ -355,6 +466,52 @@ app.get(
   }
 );
 
+/**
+ * @openapi
+ * /api/assessments:
+ *   post:
+ *     tags: [Assessments]
+ *     summary: Assessment-Draft anlegen
+ *     description: |
+ *       Erstellt eine neue BAR-Assessment-Akte im Status draft.
+ *       Die Pflichttests werden mit dem initialen Status not-tested angelegt.
+ *       Nur ein BAR Attester darf einen Assessment-Draft erstellen.
+ *     security:
+ *       - RwpRoleHeader: []
+ *         RwpUserDidHeader: []
+ *     parameters:
+ *       - in: header
+ *         name: x-rwp-role
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [bar-attester]
+ *       - in: header
+ *         name: x-rwp-user-did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: "#/components/schemas/AssessmentCreateRequest"
+ *     responses:
+ *       201:
+ *         description: Assessment-Draft wurde erzeugt.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assessment:
+ *                   $ref: "#/components/schemas/Assessment"
+ *       401:
+ *         description: Fehlende oder ungültige BAR-Identität.
+ *       403:
+ *         description: Nur bar-attester darf neue Assessments anlegen.
+ */
 app.post(
   "/api/assessments",
   requireRole("bar-attester"),
@@ -414,6 +571,46 @@ app.post(
   }
 );
 
+/**
+ * @openapi
+ * /api/assessments/{id}:
+ *   get:
+ *     tags: [Assessments]
+ *     summary: Einzelnes Assessment lesen
+ *     security:
+ *       - RwpRoleHeader: []
+ *         RwpUserDidHeader: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: header
+ *         name: x-rwp-role
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [bar-attester, bar-auditor, bar-viewer]
+ *       - in: header
+ *         name: x-rwp-user-did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Assessment-Akte.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assessment:
+ *                   $ref: "#/components/schemas/Assessment"
+ *       404:
+ *         description: Assessment nicht gefunden.
+ */
 app.get(
   "/api/assessments/:id",
   requireRole("bar-attester", "bar-auditor", "bar-viewer"),
@@ -434,6 +631,74 @@ app.get(
   }
 );
 
+/**
+ * @openapi
+ * /api/assessments/{id}:
+ *   put:
+ *     tags: [Assessments]
+ *     summary: Assessment-Draft aktualisieren
+ *     description: |
+ *       Aktualisiert Stammdaten, Claims, Evidenz und Testergebnisse eines
+ *       Draft-Assessments. Finalisierte Assessments sind unveränderlich.
+ *       BAR Attester und BAR Auditor dürfen Drafts bearbeiten.
+ *     security:
+ *       - RwpRoleHeader: []
+ *         RwpUserDidHeader: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: header
+ *         name: x-rwp-role
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [bar-attester, bar-auditor]
+ *       - in: header
+ *         name: x-rwp-user-did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             allOf:
+ *               - $ref: "#/components/schemas/AssessmentCreateRequest"
+ *               - type: object
+ *                 properties:
+ *                   tests:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       required: [id, result]
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         result:
+ *                           type: string
+ *                           enum: [not-tested, passed, failed]
+ *                         evidence:
+ *                           type: string
+ *     responses:
+ *       200:
+ *         description: Assessment-Draft wurde aktualisiert.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assessment:
+ *                   $ref: "#/components/schemas/Assessment"
+ *       404:
+ *         description: Assessment nicht gefunden.
+ *       409:
+ *         description: Assessment ist bereits finalisiert.
+ */
 app.put(
   "/api/assessments/:id",
   requireRole("bar-attester", "bar-auditor"),
@@ -559,6 +824,71 @@ app.put(
   }
 );
 
+/**
+ * @openapi
+ * /api/assessments/{id}/finalize:
+ *   post:
+ *     tags: [Assessments]
+ *     summary: Assessment finalisieren und ConformanceRecord erstellen
+ *     description: |
+ *       Finalisiert ein Assessment und erzeugt in derselben Datenbanktransaktion
+ *       einen persistenten RWP-ConformanceRecord im BAR-Namespace.
+ *
+ *       Die Finalisierung ist nur möglich, wenn alle Pflichttests bestanden
+ *       sind, keine Tests fehlgeschlagen sind und die erforderlichen Claims
+ *       sowie Evidenz vorhanden sind.
+ *     security:
+ *       - RwpRoleHeader: []
+ *         RwpUserDidHeader: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: header
+ *         name: x-rwp-role
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [bar-attester]
+ *       - in: header
+ *         name: x-rwp-user-did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       201:
+ *         description: Assessment finalisiert und ConformanceRecord erstellt.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 assessment:
+ *                   $ref: "#/components/schemas/Assessment"
+ *                 conformanceRecord:
+ *                   $ref: "#/components/schemas/ConformanceRecord"
+ *       404:
+ *         description: Assessment nicht gefunden.
+ *       409:
+ *         description: Assessment ist bereits finalisiert.
+ *       422:
+ *         description: Finalisierungsbedingungen sind nicht erfüllt.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: finalisation_requirements_not_met
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ */
 app.post(
   "/api/assessments/:id/finalize",
   requireRole("bar-attester"),
@@ -607,6 +937,40 @@ app.post(
   }
 );
 
+/**
+ * @openapi
+ * /api/conformance-records:
+ *   get:
+ *     tags: [ConformanceRecords]
+ *     summary: Finalisierte ConformanceRecords auflisten
+ *     security:
+ *       - RwpRoleHeader: []
+ *         RwpUserDidHeader: []
+ *     parameters:
+ *       - in: header
+ *         name: x-rwp-role
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [bar-attester, bar-auditor, bar-viewer]
+ *       - in: header
+ *         name: x-rwp-user-did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Finalisierte BAR-ConformanceRecords.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 conformanceRecords:
+ *                   type: array
+ *                   items:
+ *                     $ref: "#/components/schemas/ConformanceRecord"
+ */
 app.get(
   "/api/conformance-records",
   requireRole("bar-attester", "bar-auditor", "bar-viewer"),
@@ -662,6 +1026,50 @@ app.get(
   }
 );
 
+/**
+ * @openapi
+ * /api/conformance-records/{did}:
+ *   get:
+ *     tags: [ConformanceRecords]
+ *     summary: Finalisierten ConformanceRecord lesen
+ *     description: |
+ *       Interner, rollenbasierter API-Zugriff auf einen finalisierten
+ *       ConformanceRecord. Für die öffentliche, föderierte Auflösung
+ *       stehen zusätzlich der BAR-DID-Resolver und /api/records/{did} bereit.
+ *     security:
+ *       - RwpRoleHeader: []
+ *         RwpUserDidHeader: []
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: did:rwp:ba31d45f:records:1bb42515-9fd8-4004-99ba-46637f7bba88
+ *       - in: header
+ *         name: x-rwp-role
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [bar-attester, bar-auditor, bar-viewer]
+ *       - in: header
+ *         name: x-rwp-user-did
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: ConformanceRecord.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 conformanceRecord:
+ *                   $ref: "#/components/schemas/ConformanceRecord"
+ *       404:
+ *         description: ConformanceRecord nicht gefunden.
+ */
 app.get(
   "/api/conformance-records/:did",
   requireRole("bar-attester", "bar-auditor", "bar-viewer"),

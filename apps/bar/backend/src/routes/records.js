@@ -3,6 +3,37 @@ import pool from "../db.js";
 
 const router = express.Router();
 
+/**
+ * @openapi
+ * /api/records/{did}:
+ *   get:
+ *     tags: [ConformanceRecords]
+ *     summary: Finalisierten BAR-ConformanceRecord öffentlich abrufen
+ *     description: |
+ *       Öffentlicher, föderierter RWP-Record-Endpoint. Liefert ausschliesslich
+ *       finalisierte ConformanceRecords. Dieser Endpoint wird über das
+ *       `recordEndpoint`-Feld eines BAR-DID-Dokuments referenziert.
+ *     parameters:
+ *       - in: path
+ *         name: did
+ *         required: true
+ *         schema:
+ *           type: string
+ *         example: did:rwp:ba31d45f:records:1bb42515-9fd8-4004-99ba-46637f7bba88
+ *     responses:
+ *       200:
+ *         description: Finalisierter ConformanceRecord.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ConformanceRecord"
+ *       404:
+ *         description: ConformanceRecord ist unbekannt oder nicht finalisiert.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/Error"
+ */
 router.get(/^\/(.+)$/, async (req, res) => {
   const did = decodeURIComponent(req.params[0]);
 
