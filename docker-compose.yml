@@ -119,10 +119,14 @@ services:
   bar-backend:
     build:
       context: ./apps/bar/backend
+    container_name: poc-bar-backend
+    restart: unless-stopped
     environment:
       PORT: 3000
     ports:
       - "3004:3000"
+    networks:
+      - poc_network
 
   nginx:
     image: nginx:alpine
