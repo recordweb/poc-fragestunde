@@ -10,6 +10,11 @@
   .test-account { display: inline-block; margin: 4px; padding: 8px 12px; border: 1px solid #999; border-radius: 6px; cursor: pointer; background: #f5f5f7; }
   .test-account:hover { background: #e6e6ea; }
   textarea, select { width: 100%; padding: 8px; margin: 6px 0; box-sizing: border-box; }
+  input { width: 100%; padding: 8px; margin: 6px 0 12px; box-sizing: border-box; }
+  #schemaAdminCard h3 { font-size: 1rem; margin-top: 22px; }
+  .validation-ok { border-left: 4px solid #2b8a3e; background: #eefaf1; margin-top: 12px; padding: 10px; }
+  .validation-error { border-left: 4px solid #c92a2a; background: #fff1f1; margin-top: 12px; padding: 10px; }
+  .binding-item { border-left: 4px solid #2b8a3e; background: #fafafa; margin: 8px 0; padding: 8px 10px; }
   button { padding: 8px 16px; cursor: pointer; margin-right: 6px; }
   .record { border-left: 4px solid #999; padding: 10px; margin: 10px 0; background: #fafafa; border-radius: 4px; }
   .record.draft { border-color: #e0a800; }
@@ -63,6 +68,71 @@
     <div id="casesList"></div>
   </div>
 
+  <div class="card" id="schemaAdminCard" style="display:none;">
+    <h2>Schema (Admin)</h2>
+
+    <div id="schemaAdminSummary" class="did">
+      Lädt SchemaRecord…
+    </div>
+
+    <details>
+      <summary>Schema-Datei anzeigen</summary>
+      <pre id="schemaAdminFileContent">Lädt…</pre>
+    </details>
+
+    <h3>BAR-Conformance-Bindung</h3>
+
+    <label for="barResolverEndpoint">
+      BAR-Resolver-Endpunkt
+    </label>
+    <input
+      id="barResolverEndpoint"
+      type="url"
+      value="https://vps.recordweb.dev/bar/did"
+      placeholder="https://vps.recordweb.dev/bar/did"
+    >
+
+    <label for="barConformanceDid">
+      ConformanceRecord-DID
+    </label>
+    <input
+      id="barConformanceDid"
+      type="text"
+      placeholder="did:rwp:ba31d45f:records:…"
+    >
+
+    <label for="barConformanceSnapshotHash">
+      Conformance-Snapshot-Hash
+    </label>
+    <input
+      id="barConformanceSnapshotHash"
+      type="text"
+      placeholder="sha256:…"
+    >
+
+    <div style="margin-top:10px;">
+      <button id="validateConformanceBtn">
+        Attestation prüfen
+      </button>
+
+      <button id="bindConformanceBtn">
+        Prüfen und binden
+      </button>
+    </div>
+
+    <div id="conformanceValidationResult"></div>
+
+    <h3>Aktive Conformance-Bindungen</h3>
+    <div id="schemaBindingsList">
+      Lädt…
+    </div>
+
+    <details>
+      <summary>Publizierten SchemaRecord anzeigen</summary>
+      <pre id="publishedSchemaRecord">Lädt…</pre>
+    </details>
+  </div>
+
   <div class="card" id="logsCard" style="display:none;">
     <h2>Server-Logs (Admin)</h2>
     <div id="logsList"></div>
@@ -74,6 +144,8 @@
 const CASES_API_BASE = "/antwortmanagement/api/cases";
 const RECORDS_API_BASE = "/antwortmanagement/api/records";
 const SOX_RECORD_TYPES = ["MiniChat", "TeamsChat"];
+const SCHEMA_API_BASE = "/antwortmanagement/api/schemas/fragestunde-antwort";
+const SCHEMA_DID = "did:rwp:b7d4c810:schema:fragestunde-antwort";
 
 const RESOLVER_BASE = "/resolver/bk";
 // Die Frage-Auswahl wird bewusst NICHT direkt beim Fragenmanagement abgefragt,
@@ -676,6 +748,285 @@ casesList.addEventListener("toggle", async (e) => {
   `;
 }, true);
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function bindingFormValues() {
+  return {
+    resolverEndpoint:
+      document.getElementById("barResolverEndpoint").value.trim(),
+
+    conformanceRecordDid:
+      document.getElementById("barConformanceDid").value.trim(),
+
+    conformanceSnapshotHash:
+      document.getElementById("barConformanceSnapshotHash").value.trim()
+  };
+}
+
+function renderSchemaBindings(bindings) {
+  const list = document.getElementById("schemaBindingsList");
+
+  if (!bindings || !bindings.length) {
+    list.innerHTML = `
+      <p class="did">
+        Keine aktive BAR-Conformance-Bindung für diese Schema-Version.
+      </p>
+    `;
+    return;
+  }
+
+  list.innerHTML = bindings.map((binding) => `
+    <div class="binding-item">
+      <strong>${escapeHtml(binding.status)}</strong><br>
+      <span class="did">
+        BAR-DID: ${escapeHtml(binding.conformance_record_did)}
+      </span><br>
+      <span class="did">
+        Snapshot: ${escapeHtml(binding.conformance_snapshot_hash)}
+      </span><br>
+      <span class="did">
+        Resolver: ${escapeHtml(binding.conformance_resolver_url)}
+      </span><br>
+      <span class="did">
+        Gebunden: ${escapeHtml(binding.bound_at)}
+        durch ${escapeHtml(binding.bound_by)}
+      </span>
+    </div>
+  `).join("");
+}
+
+function renderValidationResult(result, isError = false) {
+  const target = document.getElementById(
+    "conformanceValidationResult"
+  );
+
+  if (isError) {
+    target.innerHTML = `
+      <div class="validation-error">
+        <strong>Prüfung fehlgeschlagen</strong>
+        <p>${escapeHtml(result)}</p>
+      </div>
+    `;
+    return;
+  }
+
+  const errors = result.errors || [];
+  const record = result.conformanceRecord;
+  const subject = record?.payload?.subject || {};
+  const claims = record?.payload?.claims || [];
+
+  if (!result.valid) {
+    target.innerHTML = `
+      <div class="validation-error">
+        <strong>Attestation ist nicht bindbar</strong>
+        <ul>
+          ${errors.map((error) => `<li>${escapeHtml(error)}</li>`).join("")}
+        </ul>
+      </div>
+    `;
+    return;
+  }
+
+  const claimText = claims.map((claim) => {
+    const profiles = (claim.profiles || []).join(", ");
+    const roles = (claim.roles || []).join(", ");
+
+    return `Profile: ${profiles}; Rollen: ${roles}`;
+  }).join("<br>");
+
+  target.innerHTML = `
+    <div class="validation-ok">
+      <strong>Attestation ist gültig und kann gebunden werden.</strong>
+      <p class="did">
+        ConformanceRecord: ${escapeHtml(record.did)}<br>
+        Snapshot-Hash: ${escapeHtml(record.metadata?.snapshotHash)}<br>
+        Zielimplementation: ${escapeHtml(subject.implementationDid)}<br>
+        Produkt: ${escapeHtml(subject.productName)}
+        ${escapeHtml(subject.productVersion)}<br>
+        Claims: ${claimText}<br>
+        Gültig bis: ${escapeHtml(record.payload?.expiresAt || "unbefristet")}
+      </p>
+    </div>
+  `;
+}
+
+async function loadSchemaAdmin() {
+  const summary = document.getElementById("schemaAdminSummary");
+
+  try {
+    const res = await fetch(`${SCHEMA_API_BASE}/admin`);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    summary.innerHTML = `
+      Schema-DID: ${escapeHtml(data.schemaId)}<br>
+      Datei: ${escapeHtml(data.schemaFile)}<br>
+      Schema-Hash: ${escapeHtml(data.schemaHash)}
+    `;
+
+    document.getElementById("schemaAdminFileContent").textContent =
+      JSON.stringify(data.schema, null, 2);
+
+    document.getElementById("publishedSchemaRecord").textContent =
+      JSON.stringify(data.schemaRecord, null, 2);
+
+    renderSchemaBindings(data.bindings);
+
+    const firstBinding = data.bindings?.[0];
+
+    if (firstBinding) {
+      document.getElementById("barResolverEndpoint").value =
+        firstBinding.conformance_resolver_url || "";
+
+      document.getElementById("barConformanceDid").value =
+        firstBinding.conformance_record_did || "";
+
+      document.getElementById("barConformanceSnapshotHash").value =
+        firstBinding.conformance_snapshot_hash || "";
+    }
+  } catch (error) {
+    summary.textContent =
+      `SchemaRecord konnte nicht geladen werden: ${error.message}`;
+
+    document.getElementById("schemaBindingsList").innerHTML = "";
+  }
+}
+
+async function validateConformanceBinding() {
+  const values = bindingFormValues();
+
+  try {
+    renderValidationResult(
+      "BAR-ConformanceRecord wird über den Resolver geprüft…"
+    );
+
+    const res = await fetch(
+      `${SCHEMA_API_BASE}/conformance-bindings/validate`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(values)
+      }
+    );
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const message = data.message ||
+        data.error ||
+        `HTTP ${res.status}`;
+
+      renderValidationResult(message, true);
+      return;
+    }
+
+    renderValidationResult(data);
+  } catch (error) {
+    renderValidationResult(error.message, true);
+  }
+}
+
+async function bindConformanceBinding() {
+  const user = getCurrentUser();
+
+  if (!user?.isAdmin) {
+    renderValidationResult(
+      "Nur ein Antwortmanagement-Admin darf eine Conformance-Bindung speichern.",
+      true
+    );
+    return;
+  }
+
+  const values = bindingFormValues();
+
+  const confirmed = confirm(
+    "Die BAR-Attestation wird nach erfolgreicher Prüfung " +
+    "an die aktuelle Schema-Version gebunden. Fortfahren?"
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    renderValidationResult(
+      "BAR-Attestation wird geprüft und anschliessend gebunden…"
+    );
+
+    const res = await fetch(
+      `${SCHEMA_API_BASE}/conformance-bindings`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ...values,
+          boundBy: user.did
+        })
+      }
+    );
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const errors = data.errors?.length
+        ? data.errors.join(" ")
+        : data.message || data.error || `HTTP ${res.status}`;
+
+      renderValidationResult(errors, true);
+      return;
+    }
+
+    renderValidationResult({
+      valid: true,
+      errors: [],
+      conformanceRecord: {
+        did: data.binding.conformance_record_did,
+        payload: {
+          subject: {
+            implementationDid:
+              "did:rwp:b7d4c810:antwortmanagement",
+            productName: "Antwortmanagement",
+            productVersion: "0.1.0"
+          },
+          claims: [],
+          expiresAt: null
+        },
+        metadata: {
+          snapshotHash:
+            data.binding.conformance_snapshot_hash
+        }
+      }
+    });
+
+    await loadSchemaAdmin();
+  } catch (error) {
+    renderValidationResult(error.message, true);
+  }
+}
+
+document
+  .getElementById("validateConformanceBtn")
+  .addEventListener("click", validateConformanceBinding);
+
+document
+  .getElementById("bindConformanceBtn")
+  .addEventListener("click", bindConformanceBinding);
+  
 async function loadLogs() {
   const res = await fetch("/antwortmanagement/api/logs");
   const logs = await res.json();
@@ -698,11 +1049,17 @@ function renderApp() {
     appView.classList.add("hidden");
   }
   const logsCard = document.getElementById("logsCard");
+  const schemaAdminCard = document.getElementById("schemaAdminCard");
+
   if (user && user.isAdmin) {
     logsCard.style.display = "block";
+    schemaAdminCard.style.display = "block";
+
     loadLogs();
+    loadSchemaAdmin();
   } else {
     logsCard.style.display = "none";
+    schemaAdminCard.style.display = "none";
   }
 }
 
