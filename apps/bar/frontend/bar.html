@@ -311,7 +311,42 @@
 
       .user-info { text-align: left; }
     }
-  </style>
+
+    #auditSchemaButton {
+      margin-top: 4px;
+    }
+
+    .audit-step {
+      border-left: 4px solid var(--grey-200);
+      margin: 8px 0;
+      padding: 8px 10px;
+      background: var(--grey-50);
+    }
+
+    .audit-step.ok {
+      border-left-color: var(--green);
+      background: #effaf2;
+    }
+
+    .audit-step.error {
+      border-left-color: var(--red);
+      background: #fff1f1;
+    }
+
+    .audit-step.pending {
+      border-left-color: var(--yellow);
+      background: #fff8e6;
+    }
+
+    .audit-step strong {
+      display: block;
+      margin-bottom: 3px;
+    }
+
+    .audit-step code {
+      word-break: break-all;
+    }
+</style>
 </head>
 <body>
   <header>
@@ -386,6 +421,66 @@
             Die Schema-Kopplung folgt erst in Ausbaustufe 2.
           </p>
         </section>
+      </div>
+      <div class="card" id="schemaAuditCard">
+        <h2>SchemaRecord auditieren</h2>
+
+        <p class="hint">
+          Das BAR prüft unabhängig, ob eine Zielanwendung den erwarteten
+          ConformanceRecord im auflösbaren SchemaRecord als Hard Link publiziert.
+          Diese Prüfung verändert weder Schema noch ConformanceRecord.
+        </p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="targetResolverEndpoint">
+              Zielresolver-Endpunkt
+            </label>
+            <input
+              id="targetResolverEndpoint"
+              value="https://vps.recordweb.dev/antwortmanagement/did"
+              placeholder="https://vps.recordweb.dev/antwortmanagement/did"
+            >
+          </div>
+
+          <div class="field">
+            <label for="targetSchemaDid">
+              SchemaRecord-DID
+            </label>
+            <input
+              id="targetSchemaDid"
+              value="did:rwp:b7d4c810:schema:fragestunde-antwort"
+              placeholder="did:rwp:…"
+            >
+          </div>
+
+          <div class="field">
+            <label for="expectedConformanceRecord">
+              Erwarteter BAR-ConformanceRecord
+            </label>
+            <select id="expectedConformanceRecord">
+              <option value="">Finalisierte Attestationen laden…</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button id="auditSchemaButton" class="primary">
+            SchemaRecord prüfen
+          </button>
+        </div>
+
+        <div id="schemaAuditResult"></div>
+
+        <details>
+          <summary>Geladenes DID-Dokument anzeigen</summary>
+          <pre id="targetSchemaDidDocument">Noch nicht geprüft.</pre>
+        </details>
+
+        <details>
+          <summary>Geladenen SchemaRecord anzeigen</summary>
+          <pre id="targetSchemaRecord">Noch nicht geprüft.</pre>
+        </details>
       </div>
     </section>
   </main>
@@ -483,7 +578,9 @@
       $("userRole").textContent = roleLabel(session.user.role);
       $("userDid").textContent = session.user.did;
       $("newAssessmentButton").disabled = !canEdit();
+
       loadAssessments();
+      loadConformanceRecordsForAudit();
     }
 
     async function loadAssessments(selectId = null) {
@@ -858,10 +955,339 @@
       setMessage("loginMessage", "success", "Du wurdest abgemeldet.");
     }
 
+    let cachedConformanceRecords = [];
+
+    function auditHtmlStep(title, state, detail = "") {
+      const icon = {
+        ok: "✓",
+        error: "✗",
+        pending: "…"
+      }[state] || "•";
+
+      return `
+        <div class="audit-step ${state}">
+          <strong>${icon} ${escapeHtml(title)}</strong>
+          ${detail ? `<div>${detail}</div>` : ""}
+        </div>
+      `;
+    }
+
+    function normalizedUrl(value) {
+      return String(value || "").trim().replace(/\/+$/, "");
+    }
+
+    function encodedDid(did) {
+      return encodeURIComponent(did);
+    }
+
+    function renderConformanceSelect(records) {
+      const select = $("expectedConformanceRecord");
+      cachedConformanceRecords = records || [];
+
+      if (!cachedConformanceRecords.length) {
+        select.innerHTML = `
+          <option value="">
+            Keine finalisierten ConformanceRecords vorhanden
+          </option>
+        `;
+        return;
+      }
+
+      select.innerHTML = `
+        <option value="">— ConformanceRecord wählen —</option>
+        ${cachedConformanceRecords.map((record) => {
+          const subject = record.payload?.subject || {};
+          const product = subject.productName || "Unbenannte Anwendung";
+          const version = subject.productVersion || "ohne Version";
+          const snapshotHash = record.metadata?.snapshotHash || "";
+
+          return `
+            <option
+              value="${escapeHtml(record.did)}"
+              data-snapshot-hash="${escapeHtml(snapshotHash)}"
+            >
+              ${escapeHtml(product)} ${escapeHtml(version)}
+              · ${escapeHtml(record.did)}
+            </option>
+          `;
+        }).join("")}
+      `;
+    }
+
+    async function loadConformanceRecordsForAudit() {
+      if (!session) return;
+
+      try {
+        const data = await request("/conformance-records", {
+          headers: authHeaders()
+        });
+
+        renderConformanceSelect(data.conformanceRecords);
+      } catch (error) {
+        $("expectedConformanceRecord").innerHTML = `
+          <option value="">
+            Attestationen konnten nicht geladen werden
+          </option>
+        `;
+
+        $("schemaAuditResult").innerHTML = auditHtmlStep(
+          "Finalisierte BAR-Attestationen laden",
+          "error",
+          escapeHtml(error.message)
+        );
+      }
+    }
+
+    function getSelectedConformanceRecord() {
+      const did = $("expectedConformanceRecord").value;
+
+      return cachedConformanceRecords.find(
+        (record) => record.did === did
+      ) || null;
+    }
+
+    function schemaRecordPayloadFromResponse(response) {
+      if (
+        response &&
+        response.type === "SchemaRecord" &&
+        response.payload
+      ) {
+        return response;
+      }
+
+      if (
+        response &&
+        response.schemaRecord &&
+        response.schemaRecord.type === "SchemaRecord"
+      ) {
+        return response.schemaRecord;
+      }
+
+      return null;
+    }
+
+    async function auditSchemaRecord() {
+      const targetResolver = normalizedUrl(
+        $("targetResolverEndpoint").value
+      );
+
+      const schemaDid = $("targetSchemaDid").value.trim();
+      const expectedRecord = getSelectedConformanceRecord();
+
+      const result = $("schemaAuditResult");
+      const didDocumentOutput = $("targetSchemaDidDocument");
+      const schemaRecordOutput = $("targetSchemaRecord");
+
+      didDocumentOutput.textContent = "Noch nicht geprüft.";
+      schemaRecordOutput.textContent = "Noch nicht geprüft.";
+
+      if (!targetResolver.startsWith("http://") &&
+          !targetResolver.startsWith("https://")) {
+        result.innerHTML = auditHtmlStep(
+          "Zielresolver prüfen",
+          "error",
+          "Der Zielresolver muss mit http:// oder https:// beginnen."
+        );
+        return;
+      }
+
+      if (!schemaDid.startsWith("did:rwp:")) {
+        result.innerHTML = auditHtmlStep(
+          "SchemaRecord-DID prüfen",
+          "error",
+          "Die SchemaRecord-DID muss mit did:rwp: beginnen."
+        );
+        return;
+      }
+
+      if (!expectedRecord) {
+        result.innerHTML = auditHtmlStep(
+          "Erwartete BAR-Attestation wählen",
+          "error",
+          "Wähle einen finalisierten BAR-ConformanceRecord aus."
+        );
+        return;
+      }
+
+      const expectedDid = expectedRecord.did;
+      const expectedSnapshotHash =
+        expectedRecord.metadata?.snapshotHash;
+
+      let steps = [];
+
+      try {
+        steps.push(auditHtmlStep(
+          "Zielresolver abrufen",
+          "pending",
+          `<code>${escapeHtml(
+            `${targetResolver}/${encodedDid(schemaDid)}`
+          )}</code>`
+        ));
+
+        result.innerHTML = steps.join("");
+
+        const didResponse = await fetch(
+          `${targetResolver}/${encodedDid(schemaDid)}`,
+          {
+            headers: {
+              accept: "application/json"
+            }
+          }
+        );
+
+        if (!didResponse.ok) {
+          throw new Error(
+            `Zielresolver liefert HTTP ${didResponse.status}.`
+          );
+        }
+
+        const didDocument = await didResponse.json();
+        didDocumentOutput.textContent =
+          JSON.stringify(didDocument, null, 2);
+
+        if (didDocument.id !== schemaDid) {
+          throw new Error(
+            "DID-Dokument enthält nicht die erwartete SchemaRecord-DID."
+          );
+        }
+
+        if (!didDocument.recordEndpoint) {
+          throw new Error(
+            "DID-Dokument enthält keinen recordEndpoint."
+          );
+        }
+
+        steps = [
+          auditHtmlStep(
+            "Zielresolver erreichbar",
+            "ok",
+            `DID-Dokument für <code>${escapeHtml(schemaDid)}</code> geladen.`
+          )
+        ];
+
+        result.innerHTML = steps.join("");
+
+        const schemaResponse = await fetch(didDocument.recordEndpoint, {
+          headers: {
+            accept: "application/json"
+          }
+        });
+
+        if (!schemaResponse.ok) {
+          throw new Error(
+            `SchemaRecord-Endpunkt liefert HTTP ${schemaResponse.status}.`
+          );
+        }
+
+        const rawSchemaResponse = await schemaResponse.json();
+        const schemaRecord =
+          schemaRecordPayloadFromResponse(rawSchemaResponse);
+
+        schemaRecordOutput.textContent =
+          JSON.stringify(rawSchemaResponse, null, 2);
+
+        if (!schemaRecord) {
+          throw new Error(
+            "Der recordEndpoint liefert keinen SchemaRecord im erwarteten RWP-Format."
+          );
+        }
+
+        if (schemaRecord.did !== schemaDid) {
+          throw new Error(
+            "Der geladene SchemaRecord stimmt nicht mit der aufgelösten DID überein."
+          );
+        }
+
+        if (schemaRecord.metadata?.state !== "finalized") {
+          throw new Error(
+            "Der SchemaRecord ist nicht finalisiert."
+          );
+        }
+
+        steps.push(auditHtmlStep(
+          "SchemaRecord geladen",
+          "ok",
+          `Finalisierter SchemaRecord mit Schema-Version <code>${escapeHtml(
+            schemaRecord.metadata?.schemaVersion || "unbekannt"
+          )}</code>.`
+        ));
+
+        const links = Array.isArray(
+          schemaRecord.payload?.conformanceRecords
+        )
+          ? schemaRecord.payload.conformanceRecords
+          : [];
+
+        if (!links.length) {
+          throw new Error(
+            "Der SchemaRecord enthält keine conformanceRecords."
+          );
+        }
+
+        const matchingLink = links.find((link) =>
+          link.type === "hard" &&
+          link.recordDid === expectedDid
+        );
+
+        if (!matchingLink) {
+          throw new Error(
+            "Der erwartete BAR-ConformanceRecord ist nicht als Hard Link im SchemaRecord enthalten."
+          );
+        }
+
+        if (matchingLink.snapshotHash !== expectedSnapshotHash) {
+          throw new Error(
+            "Der SchemaRecord referenziert die BAR-DID, aber mit einem anderen Snapshot-Hash."
+          );
+        }
+
+        steps.push(auditHtmlStep(
+          "BAR-Conformance-Bindung geprüft",
+          "ok",
+          `
+            Hard Link gefunden:<br>
+            <code>${escapeHtml(matchingLink.recordDid)}</code><br>
+            <code>${escapeHtml(matchingLink.snapshotHash)}</code>
+          `
+        ));
+
+        const expiresAt = expectedRecord.payload?.expiresAt;
+
+        if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
+          steps.push(auditHtmlStep(
+            "Gültigkeitszeitraum",
+            "error",
+            `Die erwartete BAR-Attestation ist seit ${escapeHtml(
+              expiresAt
+            )} abgelaufen.`
+          ));
+        } else {
+          steps.push(auditHtmlStep(
+            "Gültigkeitszeitraum",
+            "ok",
+            expiresAt
+              ? `Die BAR-Attestation ist gültig bis ${escapeHtml(expiresAt)}.`
+              : "Die BAR-Attestation enthält kein Ablaufdatum."
+          ));
+        }
+
+        result.innerHTML = steps.join("");
+      } catch (error) {
+        steps.push(auditHtmlStep(
+          "SchemaRecord-Audit fehlgeschlagen",
+          "error",
+          escapeHtml(error.message)
+        ));
+
+        result.innerHTML = steps.join("");
+      }
+    }
+
     $("loginButton").addEventListener("click", login);
     $("newAssessmentButton").addEventListener("click", renderNewAssessment);
     $("reloadButton").addEventListener("click", () => loadAssessments());
     $("logoutButton").addEventListener("click", logout);
+    $("auditSchemaButton").addEventListener("click", auditSchemaRecord);
 
     const savedSession = sessionStorage.getItem(sessionKey);
 
