@@ -123,8 +123,12 @@ services:
     restart: unless-stopped
     environment:
       PORT: 3000
-    ports:
-      - "3004:3000"
+      PGHOST: db
+      PGUSER: poc_user
+      PGPASSWORD: poc_recordweb
+      PGDATABASE: poc_db
+      PUBLIC_BASE_URL: https://vps.recordweb.dev
+      BAR_DID_NAMESPACE: ba31d45f
     networks:
       - poc_network
 
