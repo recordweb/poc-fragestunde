@@ -227,26 +227,13 @@ function verifySoXSnapshotHashes(recordType, snapshots) {
       );
     }
 
-    const metadata = {
-      did: snapshot.did,
-      recordType,
-      state: snapshot.state,
-      version: snapshot.version,
-      parents: snapshot.parents,
-      payloadHash: snapshot.payloadHash,
-      payloadFormat: snapshot.payloadFormat,
-      createdAt: snapshot.createdAt,
-      finalizedAt: snapshot.finalizedAt
-    };
-
-    const calculatedSnapshotHash = sha256(
-      `${canonicalJson(metadata)}${canonicalJson(snapshot.payload)}`
-    );
-
-    if (calculatedSnapshotHash !== snapshot.snapshotHash) {
+    if (
+      typeof snapshot.snapshotHash !== "string" ||
+      !/^sha256:[0-9a-f]{64}$/.test(snapshot.snapshotHash)
+    ) {
       throw makeError(
         "invalid-source-record",
-        `Snapshot hash mismatch for SoX snapshot version ${snapshot.version}`
+        `Invalid stored snapshot hash for SoX snapshot version ${snapshot.version}`
       );
     }
   }

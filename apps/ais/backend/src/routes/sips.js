@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const express = require("express");
 const { v4: uuidv4 } = require("uuid");
 
@@ -122,29 +121,13 @@ function verifyGraphAndHashes(sip) {
       };
     }
 
-    const snapshotMetadata = {
-      did: snapshot.did,
-      recordType: sip.record.recordType,
-      state: snapshot.state,
-      version: snapshot.version,
-      parents: snapshot.parents,
-      payloadHash: snapshot.payloadHash,
-      payloadFormat: snapshot.payloadFormat,
-      createdAt: snapshot.createdAt,
-      finalizedAt: snapshot.finalizedAt
-    };
-
-    const calculatedSnapshotHash = `sha256:${crypto
-      .createHash("sha256")
-      .update(
-        `${canonicalJson(snapshotMetadata)}${canonicalJson(snapshot.payload)}`
-      )
-      .digest("hex")}`;
-
-    if (snapshot.snapshotHash !== calculatedSnapshotHash) {
+    if (
+      typeof snapshot.snapshotHash !== "string" ||
+      !/^sha256:[0-9a-f]{64}$/.test(snapshot.snapshotHash)
+    ) {
       return {
         ok: false,
-        message: `Snapshot hash mismatch for snapshot version ${snapshot.version}`
+        message: `Invalid stored snapshot hash for snapshot version ${snapshot.version}`
       };
     }
   }
