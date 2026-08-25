@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recordweb.dev/schemas/ais-submission-receipt.schema.json",
+  "title": "AIS Submission Receipt",
+  "description": "AIS acknowledgement for an accepted RWP-OAIS-SIP MiniChat package.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receiptType",
+    "receiptVersion",
+    "receivedAt",
+    "aip",
+    "validation",
+    "sourceDeletion"
+  ],
+  "properties": {
+    "receiptType": {
+      "const": "RWP-AIS-Submission-Receipt"
+    },
+    "receiptVersion": {
+      "const": "0.1"
+    },
+    "receivedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "aip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aipId",
+        "recordDid",
+        "recordEndpoint",
+        "currentSnapshotHash",
+        "sipPackageHash"
+      ],
+      "properties": {
+        "aipId": {
+          "type": "string",
+          "pattern": "^aip:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "recordDid": {
+          "$ref": "#/$defs/miniChatDid"
+        },
+        "recordEndpoint": {
+          "type": "string",
+          "pattern": "^https://vps\\.recordweb\\.dev/ais/api/records/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "currentSnapshotHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "sipPackageHash": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sipComplete",
+        "recordFinalized",
+        "namespaceValid",
+        "snapshotGraphValid",
+        "payloadHashesValid",
+        "snapshotHashesValid"
+      ],
+      "properties": {
+        "sipComplete": {
+          "const": true
+        },
+        "recordFinalized": {
+          "const": true
+        },
+        "namespaceValid": {
+          "const": true
+        },
+        "snapshotGraphValid": {
+          "const": true
+        },
+        "payloadHashesValid": {
+          "const": true
+        },
+        "snapshotHashesValid": {
+          "const": true
+        }
+      }
+    },
+    "sourceDeletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permitted",
+        "requiresResolverVerification"
+      ],
+      "properties": {
+        "permitted": {
+          "const": true
+        },
+        "requiresResolverVerification": {
+          "const": true
+        }
+      }
+    },
+    "idempotent": {
+      "type": "boolean",
+      "description": "True when AIS returned an existing receipt for an already accepted identical SIP."
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "miniChatDid": {
+      "type": "string",
+      "pattern": "^did:rwp:s73f42a3:records:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}

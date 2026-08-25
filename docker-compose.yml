@@ -132,6 +132,42 @@ services:
     networks:
       - poc_network
 
+  ais-db:
+    image: postgres:16-alpine
+    container_name: poc-ais-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: poc_user
+      POSTGRES_PASSWORD: poc_recordweb
+      POSTGRES_DB: ais_db
+    volumes:
+      - ais_db_data:/var/lib/postgresql/data
+    networks:
+      - poc_network
+
+  ais:
+    build:
+      context: ./apps/ais/backend
+    container_name: poc-ais
+    restart: unless-stopped
+    depends_on:
+      - ais-db
+    environment:
+      PORT: 3000
+      POSTGRES_HOST: ais-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ais_db
+      POSTGRES_USER: poc_user
+      POSTGRES_PASSWORD: poc_recordweb
+      PUBLIC_BASE_URL: https://vps.recordweb.dev
+      MINICHAT_DID_NAMESPACE: s73f42a3
+      SYSTEM_RECORD_DID_NAMESPACE: a1b2c3d4
+      SCHEMAS_DIR: /app/schemas
+    volumes:
+      - ./schemas:/app/schemas:ro
+    networks:
+      - poc_network
+
   nginx:
     image: nginx:alpine
     container_name: poc-nginx
@@ -145,6 +181,8 @@ services:
     depends_on:
       - resolver-parlament
       - resolver-bk
+      - sox
+      - ais
       
 networks:
   poc_network:
@@ -155,5 +193,6 @@ networks:
 
 volumes:
   poc_db_data:
+  ais_db_data:
   resolver_parlament_data:
   resolver_bk_data:

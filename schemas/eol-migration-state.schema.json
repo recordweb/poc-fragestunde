@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recordweb.dev/schemas/eol-migration-state.schema.json",
+  "title": "MiniChat EOL Migration State",
+  "description": "Persistent migration control state for one MiniChat Record. This is not a state of the migrated RWP Record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "migrationId",
+    "recordDid",
+    "recordId",
+    "currentSnapshotHash",
+    "state",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "migrationId": {
+      "$ref": "#/$defs/uuid"
+    },
+    "recordDid": {
+      "$ref": "#/$defs/miniChatDid"
+    },
+    "recordId": {
+      "$ref": "#/$defs/uuid"
+    },
+    "currentSnapshotHash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "candidate",
+        "sip-created",
+        "submitted",
+        "accepted",
+        "resolver-confirmed",
+        "source-deletion-pending",
+        "source-deleted",
+        "deletion-record-submitted",
+        "completed",
+        "validation-failed",
+        "rejected",
+        "resolver-not-confirmed",
+        "source-deletion-failed",
+        "deletion-protocol-failed"
+      ]
+    },
+    "sip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageHash",
+        "createdAt"
+      ],
+      "properties": {
+        "packageHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "ais": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aipId",
+        "recordEndpoint",
+        "receiptHash",
+        "acceptedAt"
+      ],
+      "properties": {
+        "aipId": {
+          "$ref": "#/$defs/aipId"
+        },
+        "recordEndpoint": {
+          "$ref": "#/$defs/aisRecordEndpoint"
+        },
+        "receiptHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "resolverVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "verifiedAt",
+        "resolvedRecordEndpoint",
+        "resolvedCurrentSnapshotHash"
+      ],
+      "properties": {
+        "verifiedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resolvedRecordEndpoint": {
+          "$ref": "#/$defs/aisRecordEndpoint"
+        },
+        "resolvedCurrentSnapshotHash": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "deletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deletedAt",
+        "deletionRecordDid"
+      ],
+      "properties": {
+        "deletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "deletionRecordDid": {
+          "$ref": "#/$defs/systemRecordDid"
+        },
+        "deletionRecordSnapshotHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "occurredAt"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "aipId": {
+      "type": "string",
+      "pattern": "^aip:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "miniChatDid": {
+      "type": "string",
+      "pattern": "^did:rwp:s73f42a3:records:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "systemRecordDid": {
+      "type": "string",
+      "pattern": "^did:rwp:a1b2c3d4:records:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "aisRecordEndpoint": {
+      "type": "string",
+      "pattern": "^https://vps\\.recordweb\\.dev/ais/api/records/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}

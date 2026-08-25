@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recordweb.dev/schemas/deletion-record.schema.json",
+  "title": "RWP DeletionRecord for local source payload deletion",
+  "description": "SystemRecord payload for proof that MiniChat primary data was deleted from SoX after a verified AIS end-of-life transfer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "deletionRegime",
+    "targetRecord",
+    "archivalHandover",
+    "sourceDeletion",
+    "verification"
+  ],
+  "properties": {
+    "deletionRegime": {
+      "const": "payload-only"
+    },
+    "targetRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "did",
+        "sourceSystem",
+        "recordType",
+        "finalizedSnapshotHash"
+      ],
+      "properties": {
+        "did": {
+          "$ref": "#/$defs/miniChatDid"
+        },
+        "sourceSystem": {
+          "const": "SoX"
+        },
+        "recordType": {
+          "const": "MiniChat"
+        },
+        "finalizedSnapshotHash": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "archivalHandover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "submissionMode",
+        "sipPackageHash",
+        "aipId",
+        "aisEndpoint",
+        "aisReceiptHash",
+        "acceptedAt"
+      ],
+      "properties": {
+        "submissionMode": {
+          "const": "end-of-life"
+        },
+        "sipPackageHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "aipId": {
+          "$ref": "#/$defs/aipId"
+        },
+        "aisEndpoint": {
+          "$ref": "#/$defs/aisRecordEndpoint"
+        },
+        "aisReceiptHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "sourceDeletion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deletedAt",
+        "executor",
+        "deletedComponents",
+        "retainedComponents"
+      ],
+      "properties": {
+        "deletedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "executor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "system"
+          ],
+          "properties": {
+            "system": {
+              "const": "MiniChat-EOL-App"
+            },
+            "operator": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "deletedComponents": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "sox_records.payload.conversation",
+              "sox_record_snapshots.payload",
+              "temporary-sip-files"
+            ]
+          }
+        },
+        "retainedComponents": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "record-did",
+              "record-title",
+              "record-type",
+              "record-status",
+              "record-version",
+              "case-reference",
+              "snapshot-hashes",
+              "payload-hashes",
+              "snapshot-parent-graph"
+            ]
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "aisRetrievalVerified",
+        "resolverEndpointVerified",
+        "sourcePayloadAbsentAfterDeletion"
+      ],
+      "properties": {
+        "aisRetrievalVerified": {
+          "const": true
+        },
+        "resolverEndpointVerified": {
+          "const": true
+        },
+        "sourcePayloadAbsentAfterDeletion": {
+          "const": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "aipId": {
+      "type": "string",
+      "pattern": "^aip:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "miniChatDid": {
+      "type": "string",
+      "pattern": "^did:rwp:s73f42a3:records:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "aisRecordEndpoint": {
+      "type": "string",
+      "pattern": "^https://vps\\.recordweb\\.dev/ais/api/records/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}

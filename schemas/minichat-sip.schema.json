@@ -1,0 +1,479 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://recordweb.dev/schemas/minichat-sip.schema.json",
+  "title": "RWP-OAIS-SIP MiniChat",
+  "description": "Submission Information Package for one finalized MiniChat Record in the AIS proof of concept.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "packageType",
+    "profile",
+    "profileVersion",
+    "createdAt",
+    "producer",
+    "submission",
+    "record",
+    "contents",
+    "recordMetadata",
+    "snapshots",
+    "primaryData",
+    "preservationMetadata",
+    "manifest"
+  ],
+  "properties": {
+    "packageType": {
+      "const": "RWP-OAIS-SIP"
+    },
+    "profile": {
+      "const": "MiniChat"
+    },
+    "profileVersion": {
+      "const": "0.1"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "application",
+        "sourceSystem",
+        "sourceNamespace",
+        "sourceResolverEndpoint"
+      ],
+      "properties": {
+        "application": {
+          "const": "MiniChat-EOL-App"
+        },
+        "sourceSystem": {
+          "const": "SoX"
+        },
+        "sourceNamespace": {
+          "const": "s73f42a3"
+        },
+        "sourceResolverEndpoint": {
+          "const": "https://vps.recordweb.dev/sox/did"
+        }
+      }
+    },
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "reason",
+        "recordType",
+        "primaryDataDeletionRequired"
+      ],
+      "properties": {
+        "mode": {
+          "const": "end-of-life"
+        },
+        "reason": {
+          "const": "source-system-end-of-life"
+        },
+        "recordType": {
+          "const": "MiniChat"
+        },
+        "primaryDataDeletionRequired": {
+          "const": true
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "did",
+        "id",
+        "recordType",
+        "state",
+        "version",
+        "currentSnapshotHash",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "did": {
+          "$ref": "#/$defs/miniChatDid"
+        },
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "recordType": {
+          "const": "MiniChat"
+        },
+        "state": {
+          "const": "finalized"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "currentSnapshotHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "contents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordMetadata",
+        "snapshots",
+        "primaryData",
+        "preservationMetadata",
+        "manifest"
+      ],
+      "properties": {
+        "recordMetadata": {
+          "const": "metadata/rwp-record.json"
+        },
+        "snapshots": {
+          "const": "metadata/rwp-snapshots.json"
+        },
+        "primaryData": {
+          "const": "content/conversation.json"
+        },
+        "preservationMetadata": {
+          "const": "header/preservation-metadata.json"
+        },
+        "manifest": {
+          "const": "header/manifest-sha256.json"
+        }
+      }
+    },
+    "recordMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "did",
+        "recordType",
+        "status",
+        "version",
+        "title",
+        "payloadMetadata",
+        "createdAt",
+        "updatedAt"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "did": {
+          "$ref": "#/$defs/miniChatDid"
+        },
+        "recordType": {
+          "const": "MiniChat"
+        },
+        "status": {
+          "const": "finalized"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payloadMetadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "caseReference"
+          ],
+          "properties": {
+            "source": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": [
+                "system"
+              ],
+              "properties": {
+                "system": {
+                  "const": "MiniChat"
+                }
+              }
+            },
+            "caseReference": {
+              "type": "object",
+              "additionalProperties": true,
+              "required": [
+                "system",
+                "caseId"
+              ],
+              "properties": {
+                "system": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "caseId": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "snapshots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/snapshot"
+      }
+    },
+    "primaryData": {
+      "$ref": "#/$defs/conversation"
+    },
+    "preservationMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preservationLevel",
+        "custodyTransfer"
+      ],
+      "properties": {
+        "preservationLevel": {
+          "const": "AIP"
+        },
+        "custodyTransfer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "sourceSystem",
+            "targetSystem"
+          ],
+          "properties": {
+            "mode": {
+              "const": "end-of-life"
+            },
+            "sourceSystem": {
+              "const": "SoX"
+            },
+            "targetSystem": {
+              "const": "AIS"
+            }
+          }
+        }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "packageHash",
+        "entries"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "sha256"
+        },
+        "packageHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "hash"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^(header|metadata|content)/.+"
+              },
+              "hash": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "miniChatDid": {
+      "type": "string",
+      "pattern": "^did:rwp:s73f42a3:records:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshotHash",
+        "did",
+        "version",
+        "state",
+        "parents",
+        "payloadHash",
+        "payloadFormat",
+        "createdAt",
+        "finalizedAt"
+      ],
+      "properties": {
+        "snapshotHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "did": {
+          "$ref": "#/$defs/miniChatDid"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "const": "finalized"
+        },
+        "parents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sha256"
+          },
+          "uniqueItems": true
+        },
+        "payload": {
+          "$ref": "#/$defs/conversation"
+        },
+        "payloadHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payloadFormat": {
+          "const": "application/json"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finalizedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "conversation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "conversationId",
+        "system",
+        "messages"
+      ],
+      "properties": {
+        "conversationId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "system": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "type",
+            "endpoint"
+          ],
+          "properties": {
+            "type": {
+              "const": "MiniChat"
+            },
+            "endpoint": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "id",
+              "createdAt",
+              "author",
+              "content"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "author": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "displayName"
+                ],
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "content": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "text",
+                  "format"
+                ],
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "format": {
+                    "const": "text/plain; charset=utf-8"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
