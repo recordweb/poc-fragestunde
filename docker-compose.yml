@@ -116,6 +116,33 @@ services:
     networks:
       - poc_network
 
+  minichat-eol:
+    build:
+      context: ./apps/minichat-eol/backend
+      dockerfile: Dockerfile
+    container_name: poc-minichat-eol
+    restart: unless-stopped
+    depends_on:
+      - db
+      - ais
+    environment:
+      PORT: 3000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: poc_db
+      POSTGRES_USER: poc_user
+      POSTGRES_PASSWORD: poc_recordweb
+      PUBLIC_BASE_URL: https://vps.recordweb.dev
+      AIS_API_BASE_URL: http://ais:3000/api
+      MINICHAT_DID_NAMESPACE: s73f42a3
+      SYSTEM_RECORD_DID_NAMESPACE: a1b2c3d4
+      MINICHAT_RESOLVER_ENDPOINT: https://vps.recordweb.dev/sox/did
+      SCHEMAS_DIR: /app/schemas
+    volumes:
+      - ./schemas:/app/schemas:ro
+    networks:
+      - poc_network
+
   bar-backend:
     build:
       context: ./apps/bar/backend
@@ -182,6 +209,8 @@ services:
       - resolver-parlament
       - resolver-bk
       - sox
+      - minichat
+      - minichat-eol
       - ais
       
 networks:

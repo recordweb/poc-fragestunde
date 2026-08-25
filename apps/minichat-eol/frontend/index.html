@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniChat EOL – AIS-Migration</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f7fa;
+      color: #17212b;
+    }
+
+    body {
+      margin: 0;
+      padding: 2rem;
+    }
+
+    header {
+      max-width: 1300px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    h1 {
+      margin: 0 0 .4rem;
+      font-size: 1.75rem;
+    }
+
+    p {
+      margin: 0;
+      color: #52616f;
+      line-height: 1.45;
+    }
+
+    main {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    .notice {
+      border: 1px solid #b8d6ef;
+      background: #eaf5ff;
+      padding: 1rem;
+      border-radius: .5rem;
+      margin-bottom: 1.5rem;
+      color: #174a6c;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: .75rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      background: #1263a6;
+      color: #fff;
+      font: inherit;
+      padding: .55rem .8rem;
+      border-radius: .35rem;
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) {
+      background: #0c4f88;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    button.warn {
+      background: #b95100;
+    }
+
+    button.warn:hover:not(:disabled) {
+      background: #8e3f00;
+    }
+
+    button.danger {
+      background: #ae2634;
+    }
+
+    button.danger:hover:not(:disabled) {
+      background: #851e29;
+    }
+
+    .status {
+      font-size: .9rem;
+      color: #52616f;
+    }
+
+    .error {
+      margin: 1rem 0;
+      padding: 1rem;
+      border-radius: .5rem;
+      color: #7d1420;
+      border: 1px solid #f0b7be;
+      background: #fff0f2;
+      white-space: pre-wrap;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #d8e0e8;
+      border-radius: .5rem;
+      margin: 0 0 1rem;
+      padding: 1rem;
+      box-shadow: 0 1px 2px rgba(15, 35, 55, .04);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .title {
+      font-weight: 650;
+      font-size: 1.1rem;
+    }
+
+    .did {
+      margin-top: .35rem;
+      color: #52616f;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .82rem;
+      overflow-wrap: anywhere;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: .2rem .45rem;
+      border-radius: 999px;
+      font-size: .76rem;
+      font-weight: 650;
+      background: #e7eef5;
+      color: #34495c;
+      white-space: nowrap;
+    }
+
+    .badge.accepted,
+    .badge.resolver-confirmed,
+    .badge.completed {
+      background: #d9f2df;
+      color: #18602c;
+    }
+
+    .badge.source-deleted,
+    .badge.deletion-record-submitted {
+      background: #fff1cc;
+      color: #775000;
+    }
+
+    .badge.rejected,
+    .badge.validation-failed,
+    .badge.resolver-not-confirmed,
+    .badge.source-deletion-failed,
+    .badge.deletion-protocol-failed {
+      background: #ffe0e3;
+      color: #8b1e2b;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: .4rem 1rem;
+      margin: 1rem 0;
+      font-size: .9rem;
+    }
+
+    dt {
+      color: #657583;
+    }
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .actions {
+      display: flex;
+      gap: .6rem;
+      flex-wrap: wrap;
+      border-top: 1px solid #e6ebf0;
+      padding-top: 1rem;
+    }
+
+    details {
+      margin-top: 1rem;
+      border-top: 1px solid #e6ebf0;
+      padding-top: .75rem;
+    }
+
+    pre {
+      overflow: auto;
+      background: #1e2933;
+      color: #eaf0f5;
+      padding: .85rem;
+      border-radius: .35rem;
+      font-size: .78rem;
+    }
+
+    @media (max-width: 700px) {
+      body {
+        padding: 1rem;
+      }
+
+      header,
+      .card-header {
+        display: block;
+      }
+
+      .badge {
+        margin-top: .5rem;
+      }
+
+      dl {
+        grid-template-columns: 1fr;
+        gap: .15rem;
+      }
+
+      dt {
+        margin-top: .6rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>MiniChat End of Life</h1>
+      <p>
+        Kontrollierte Übernahme finalisierter MiniChat-Records in AIS.
+        Der Resolverwechsel erfolgt manuell in der Fabric-Admin-App.
+      </p>
+    </div>
+    <a href="/minichat-eol/api-docs/" target="_blank" rel="noopener">API-Dokumentation</a>
+  </header>
+
+  <main>
+    <div class="notice">
+      <strong>Ablauf:</strong>
+      SIP erzeugen → an AIS übermitteln → Resolver in der Fabric-Admin-App
+      auf AIS umstellen → Resolver prüfen → Primärdaten im SoX löschen →
+      Löschprotokoll an AIS übermitteln.
+    </div>
+
+    <div class="toolbar">
+      <button id="reload">Kandidaten aktualisieren</button>
+      <span class="status" id="status">Bereit</span>
+    </div>
+
+    <div class="error hidden" id="error"></div>
+    <section id="candidates"></section>
+  </main>
+
+  <script>
+    const apiBase = "/minichat-eol/api";
+    const candidatesElement = document.getElementById("candidates");
+    const errorElement = document.getElementById("error");
+    const statusElement = document.getElementById("status");
+    const reloadButton = document.getElementById("reload");
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll("\"", "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      if (!value) return "–";
+
+      return new Intl.DateTimeFormat("de-CH", {
+        dateStyle: "medium",
+        timeStyle: "medium"
+      }).format(new Date(value));
+    }
+
+    function showError(error) {
+      const details = error.details?.length
+        ? `\n\n${JSON.stringify(error.details, null, 2)}`
+        : "";
+
+      errorElement.textContent =
+        `${error.error || "Fehler"}: ${error.message || "Unbekannter Fehler"}${details}`;
+      errorElement.classList.remove("hidden");
+    }
+
+    function clearError() {
+      errorElement.textContent = "";
+      errorElement.classList.add("hidden");
+    }
+
+    async function request(path, options = {}) {
+      const response = await fetch(`${apiBase}${path}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        },
+        ...options
+      });
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        const error = new Error(body.message || `HTTP ${response.status}`);
+        error.error = body.error;
+        error.details = body.details || [];
+        throw error;
+      }
+
+      return body;
+    }
+
+    function migrationState(candidate) {
+      return candidate.migration?.state || "candidate";
+    }
+
+    function button(label, action, enabled, style = "") {
+      return `
+        <button
+          class="${style}"
+          data-action="${action}"
+          ${enabled ? "" : "disabled"}
+        >${escapeHtml(label)}</button>
+      `;
+    }
+
+    function renderCandidate(candidate) {
+      const migration = candidate.migration;
+      const state = migrationState(candidate);
+
+      const canCreateSip = [
+        "candidate",
+        "validation-failed",
+        "sip-created"
+      ].includes(state);
+
+      const canSubmitSip = [
+        "sip-created",
+        "submitted",
+        "rejected"
+      ].includes(state);
+
+      const canVerifyResolver = [
+        "accepted",
+        "resolver-not-confirmed",
+        "resolver-confirmed"
+      ].includes(state);
+
+      const canDeleteSource = [
+        "resolver-confirmed",
+        "source-deletion-pending"
+      ].includes(state);
+
+      const canSubmitDeletion = [
+        "source-deleted",
+        "deletion-record-submitted",
+        "deletion-protocol-failed"
+      ].includes(state);
+
+      const actionPrefix = `data-record-id="${escapeHtml(candidate.id)}"`;
+
+      const migrationDetails = migration
+        ? `
+          <details>
+            <summary>Migrationsdetails</summary>
+            <pre>${escapeHtml(JSON.stringify(migration, null, 2))}</pre>
+          </details>
+        `
+        : "";
+
+      const errorDetails = migration?.error
+        ? `
+          <p class="error">
+            ${escapeHtml(migration.error.code)}:
+            ${escapeHtml(migration.error.message)}
+          </p>
+        `
+        : "";
+
+      return `
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="title">${escapeHtml(candidate.title)}</div>
+              <div class="did">${escapeHtml(candidate.did)}</div>
+            </div>
+            <span class="badge ${escapeHtml(state)}">${escapeHtml(state)}</span>
+          </div>
+
+          <dl>
+            <dt>Record-ID</dt>
+            <dd>${escapeHtml(candidate.id)}</dd>
+
+            <dt>Version</dt>
+            <dd>${escapeHtml(candidate.version)}</dd>
+
+            <dt>Finaler Snapshot</dt>
+            <dd>${escapeHtml(candidate.snapshotHash || "–")}</dd>
+
+            <dt>Messages</dt>
+            <dd>${escapeHtml(candidate.messageCount)}</dd>
+
+            <dt>Erstellt</dt>
+            <dd>${escapeHtml(formatDate(candidate.createdAt))}</dd>
+
+            <dt>Finalisiert</dt>
+            <dd>${escapeHtml(formatDate(candidate.finalizedAt))}</dd>
+
+            <dt>Case</dt>
+            <dd>${escapeHtml(
+              candidate.caseReference
+                ? `${candidate.caseReference.system}: ${candidate.caseReference.caseId}`
+                : "–"
+            )}</dd>
+          </dl>
+
+          ${errorDetails}
+
+          <div class="actions" ${actionPrefix}>
+            ${button("1. SIP erzeugen", "sip", canCreateSip)}
+            ${button("2. An AIS übermitteln", "submit", canSubmitSip)}
+            ${button("3. Resolver prüfen", "verify-resolver", canVerifyResolver)}
+            ${button(
+              "4. Primärdaten im SoX löschen",
+              "delete-source-payload",
+              canDeleteSource,
+              "danger"
+            )}
+            ${button(
+              "5. Löschprotokoll an AIS senden",
+              "submit-deletion-record",
+              canSubmitDeletion,
+              "warn"
+            )}
+          </div>
+
+          ${migrationDetails}
+        </article>
+      `;
+    }
+
+    async function loadCandidates() {
+      clearError();
+      statusElement.textContent = "Lade Kandidaten …";
+      reloadButton.disabled = true;
+
+      try {
+        const candidates = await request("/candidates");
+
+        if (candidates.length === 0) {
+          candidatesElement.innerHTML =
+            "<p>Keine archivierungsfähigen MiniChat-Records vorhanden.</p>";
+        } else {
+          candidatesElement.innerHTML = candidates
+            .map(renderCandidate)
+            .join("");
+        }
+
+        statusElement.textContent =
+          `${candidates.length} Kandidat(en) geladen`;
+      } catch (error) {
+        showError(error);
+        statusElement.textContent = "Kandidaten konnten nicht geladen werden";
+      } finally {
+        reloadButton.disabled = false;
+      }
+    }
+
+    async function executeAction(recordId, action) {
+      const labels = {
+        sip: "SIP erzeugen",
+        submit: "SIP an AIS übermitteln",
+        "verify-resolver": "Resolver prüfen",
+        "delete-source-payload": "Primärdaten im SoX löschen",
+        "submit-deletion-record": "Löschprotokoll an AIS senden"
+      };
+
+      if (action === "delete-source-payload") {
+        const confirmed = window.confirm(
+          "Primärdaten werden im SoX entfernt. Dieser Schritt ist im PoC nicht rückgängig zu machen. Fortfahren?"
+        );
+
+        if (!confirmed) return;
+      }
+
+      clearError();
+      statusElement.textContent = `${labels[action]} läuft …`;
+
+      try {
+        await request(`/migrations/${encodeURIComponent(recordId)}/${action}`, {
+          method: "POST",
+          body: "{}"
+        });
+
+        statusElement.textContent = `${labels[action]} erfolgreich`;
+        await loadCandidates();
+      } catch (error) {
+        showError(error);
+        statusElement.textContent = `${labels[action]} fehlgeschlagen`;
+      }
+    }
+
+    reloadButton.addEventListener("click", loadCandidates);
+
+    candidatesElement.addEventListener("click", async (event) => {
+      const target = event.target;
+
+      if (!(target instanceof HTMLButtonElement)) return;
+      if (!target.dataset.action || target.disabled) return;
+
+      const actions = target.closest(".actions");
+      const recordId = actions?.dataset.recordId;
+
+      if (!recordId) return;
+
+      await executeAction(recordId, target.dataset.action);
+    });
+
+    loadCandidates();
+  </script>
+</body>
+</html>

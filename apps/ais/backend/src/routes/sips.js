@@ -192,7 +192,10 @@ function verifyGraphAndHashes(sip) {
 }
 
 function verifyManifest(sip) {
-  const manifestPaths = new Set(sip.manifest.entries.map((entry) => entry.path));
+  const manifestPaths = new Set(
+    sip.manifest.entries.map((entry) => entry.path)
+  );
+
   const requiredPaths = Object.values(sip.contents);
 
   for (const requiredPath of requiredPaths) {
