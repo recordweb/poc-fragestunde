@@ -58,6 +58,22 @@ function mapSnapshot(row) {
   };
 }
 
+function toIsoString(value) {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return date.toISOString();
+}
+
 function mapMigration(row) {
   if (!row) return null;
 
@@ -70,7 +86,7 @@ function mapMigration(row) {
     sip: row.sip
       ? {
           packageHash: row.sip_package_hash,
-          createdAt: row.sip_created_at,
+          createdAt: toIsoString(row.sip_created_at),
           package: row.sip
         }
       : null,
@@ -80,34 +96,34 @@ function mapMigration(row) {
           recordEndpoint: row.ais_record_endpoint,
           receiptHash: row.ais_receipt_hash,
           receipt: row.ais_receipt,
-          acceptedAt: row.ais_accepted_at
+          acceptedAt: toIsoString(row.ais_accepted_at)
         }
       : null,
     resolverVerification: row.resolver_verified_at
       ? {
-          verifiedAt: row.resolver_verified_at,
+          verifiedAt: toIsoString(row.resolver_verified_at),
           resolvedRecordEndpoint: row.resolver_record_endpoint,
           resolvedCurrentSnapshotHash: row.resolver_current_snapshot_hash
         }
       : null,
     deletion: row.source_deleted_at
       ? {
-          deletedAt: row.source_deleted_at,
+          deletedAt: toIsoString(row.source_deleted_at),
           deletionRecordDid: row.deletion_record_did,
           deletionRecordSnapshotHash: row.deletion_record_snapshot_hash,
           deletionRecord: row.deletion_record,
-          acceptedAt: row.deletion_record_accepted_at
+          acceptedAt: toIsoString(row.deletion_record_accepted_at)
         }
       : null,
     error: row.error_code
       ? {
           code: row.error_code,
           message: row.error_message,
-          occurredAt: row.error_occurred_at
+          occurredAt: toIsoString(row.error_occurred_at)
         }
       : null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at)
   };
 }
 
