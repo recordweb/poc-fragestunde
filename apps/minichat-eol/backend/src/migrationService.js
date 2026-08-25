@@ -1208,7 +1208,7 @@ async function deleteSourcePayload(recordId) {
         aipId: migration.aip_id,
         aisEndpoint: migration.ais_record_endpoint,
         aisReceiptHash: migration.ais_receipt_hash,
-        acceptedAt: migration.ais_accepted_at
+        acceptedAt: toIsoString(migration.ais_accepted_at)
       },
       sourceDeletion: {
         deletedAt,
@@ -1239,7 +1239,9 @@ async function deleteSourcePayload(recordId) {
       }
     };
 
-    if (!validateDeletionRecord(deletionPayload)) {
+    const normalizedDeletionPayload = normalizeJsonDates(deletionPayload);
+
+    if (!validateDeletionRecord(normalizedDeletionPayload)) {
       throw makeError(
         "invalid-deletion-record",
         "Generated DeletionRecord violates deletion-record.schema.json",
@@ -1267,7 +1269,7 @@ async function deleteSourcePayload(recordId) {
       [
         deletionRecordDid,
         deletionRecordSnapshotHash,
-        JSON.stringify(deletionPayload),
+        JSON.stringify(normalizedDeletionPayload),
         deletedAt,
         recordId
       ]
