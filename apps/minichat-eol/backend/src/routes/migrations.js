@@ -69,6 +69,7 @@ router.get("/candidates", async (_req, res, next) => {
         r.*,
         latest.snapshot_hash,
         latest.finalized_at,
+
         m.migration_id,
         m.record_id AS migration_record_id,
         m.record_did,
@@ -95,7 +96,9 @@ router.get("/candidates", async (_req, res, next) => {
         m.error_occurred_at,
         m.created_at AS migration_created_at,
         m.updated_at AS migration_updated_at
+
       FROM sox_records r
+
       LEFT JOIN LATERAL (
         SELECT snapshot_hash, finalized_at
         FROM sox_record_snapshots
@@ -103,12 +106,31 @@ router.get("/candidates", async (_req, res, next) => {
         ORDER BY version DESC
         LIMIT 1
       ) latest ON true
-      LEFT JOIN eol_migrations m ON m.record_id = r.id
+
+      LEFT JOIN eol_migrations m
+        ON m.record_id = r.id
+
       WHERE r.record_type = 'MiniChat'
         AND r.status = 'finalized'
-        AND jsonb_typeof(r.payload->'conversation'->'messages') = 'array'
-        AND jsonb_array_length(r.payload->'conversation'->'messages') > 0
-      ORDER BY r.created_at DESC
+        AND (
+          (
+            jsonb_typeof(r.payload->'conversation'->'messages') = 'array'
+            AND jsonb_array_length(r.payload->'conversation'->'messages') > 0
+          )
+          OR m.migration_id IS NOT NULL
+        )
+
+      ORDER BY
+        CASE
+          WHEN m.state IN (
+            'source-deleted',
+            'deletion-record-submitted',
+            'deletion-protocol-failed'
+          ) THEN 0
+          WHEN m.state IS NOT NULL THEN 1
+          ELSE 2
+        END,
+        COALESCE(m.updated_at, r.created_at) DESC
     `);
 
     return res.json(
