@@ -53,8 +53,8 @@ function mapSnapshot(row) {
     payload: row.payload,
     payloadHash: row.payload_hash,
     payloadFormat: row.payload_format,
-    createdAt: row.created_at,
-    finalizedAt: row.finalized_at
+    createdAt: toIsoString(row.created_at),
+    finalizedAt: toIsoString(row.finalized_at)
   };
 }
 
@@ -273,6 +273,27 @@ function createManifestEntries({
   ];
 }
 
+function normalizeJsonDates(value) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(normalizeJsonDates);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        normalizeJsonDates(nestedValue)
+      ])
+    );
+  }
+
+  return value;
+}
+
 function buildSip(record, snapshots) {
   if (record.record_type !== "MiniChat") {
     throw makeError(
@@ -453,7 +474,9 @@ function buildSip(record, snapshots) {
 
   sip.manifest.packageHash = canonicalHash(packageForHash);
 
-  if (!validateMiniChatSip(sip)) {
+  const normalizedSip = normalizeJsonDates(sip);
+
+  if (!validateMiniChatSip(normalizedSip)) {
     throw makeError(
       "invalid-sip",
       "Generated SIP violates minichat-sip.schema.json",
@@ -462,7 +485,7 @@ function buildSip(record, snapshots) {
     );
   }
 
-  return sip;
+  return normalizedSip;
 }
 
 async function getMigration(recordId, client = pool) {
