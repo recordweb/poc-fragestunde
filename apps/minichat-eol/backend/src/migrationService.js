@@ -27,6 +27,10 @@ const MINICHAT_RESOLVER_ENDPOINT =
   process.env.MINICHAT_RESOLVER_ENDPOINT ||
   "https://vps.recordweb.dev/sox/did";
 
+const RECORD_FINDER_RESOLVE_ENDPOINT =
+  process.env.RECORD_FINDER_RESOLVE_ENDPOINT ||
+  "https://vps.recordweb.dev/recordfinder/api/resolve";
+  
 const TERMINAL_STATES = new Set([
   "completed",
   "validation-failed",
@@ -837,20 +841,26 @@ async function verifyResolver(recordId) {
     "Resolver verification"
   );
 
-  const resolverUrl =
-    `${MINICHAT_RESOLVER_ENDPOINT.replace(/\/$/, "")}/` +
+  const resolveUrl =
+    `${RECORD_FINDER_RESOLVE_ENDPOINT}?did=` +
     encodeURIComponent(migration.record_did);
 
-  let didDocument;
+  let resolution;
 
   try {
-    const response = await fetch(resolverUrl);
+    const response = await fetch(resolveUrl);
 
     if (!response.ok) {
-      throw new Error(`Resolver returned HTTP ${response.status}`);
+      const body = await response.json().catch(() => ({}));
+
+      throw new Error(
+        body.error ||
+        body.message ||
+        `RecordFinder resolver returned HTTP ${response.status}`
+      );
     }
 
-    didDocument = await response.json();
+    resolution = await response.json();
   } catch (error) {
     await pool.query(
       `
@@ -868,21 +878,120 @@ async function verifyResolver(recordId) {
 
     throw makeError(
       "resolver-not-confirmed",
-      `Resolver verification failed: ${error.message}`,
+      `Federated resolver verification failed: ${error.message}`,
       422
     );
   }
 
+  const didDocument = resolution.didDocument || {};
+
   const expectedEndpoint =
     `${PUBLIC_BASE_URL}/ais/api/records/${encodeURIComponent(recordId)}`;
 
+  const mismatches = [];
+
+  if (didDocument.id !== migration.record_did) {
+    mismatches.push({
+      field: "didDocument.id",
+      expected: migration.record_did,
+      actual: didDocument.id || null
+    });
+  }
+
+  if (didDocument.recordEndpoint !== expectedEndpoint) {
+    mismatches.push({
+      field: "didDocument.recordEndpoint",
+      expected: expectedEndpoint,
+      actual: didDocument.recordEndpoint || null
+    });
+  }
+
+  if (didDocument.currentVersion !== migration.current_snapshot_hash) {
+    mismatches.push({
+      field: "didDocument.currentVersion",
+      expected: migration.current_snapshot_hash,
+      actual: didDocument.currentVersion || null
+    });
+  }
+
+  if (mismatches.length > 0) {
+    const message =
+      "Federated DID resolution does not point to the expected AIS Record";
+
+    await pool.query(
+      `
+        UPDATE eol_migrations
+        SET
+          state = 'resolver-not-confirmed',
+          error_code = 'resolver-not-confirmed',
+          error_message = $1,
+          error_occurred_at = NOW(),
+          updated_at = NOW()
+        WHERE record_id = $2
+      `,
+      [message, recordId]
+    );
+
+    throw makeError("resolver-not-confirmed", message, 422, [
+      {
+        recordFinderResolveEndpoint: RECORD_FINDER_RESOLVE_ENDPOINT,
+        resolverEndpointCalled:
+          resolution.resolverEndpointCalled || null,
+        resolverSource: resolution.resolverSource || null,
+        expectedDid: migration.record_did,
+        expectedEndpoint,
+        expectedCurrentVersion: migration.current_snapshot_hash,
+        resolvedDid: didDocument.id || null,
+        resolvedEndpoint: didDocument.recordEndpoint || null,
+        resolvedCurrentVersion: didDocument.currentVersion || null,
+        mismatches
+      }
+    ]);
+  }
+
+  const fullRecord = resolution.fullRecord;
+
+  if (!fullRecord || fullRecord.error) {
+    const message =
+      fullRecord?.error ||
+      "RecordFinder could not retrieve the AIS Record from the DID document";
+
+    await pool.query(
+      `
+        UPDATE eol_migrations
+        SET
+          state = 'resolver-not-confirmed',
+          error_code = 'resolver-not-confirmed',
+          error_message = $1,
+          error_occurred_at = NOW(),
+          updated_at = NOW()
+        WHERE record_id = $2
+      `,
+      [message, recordId]
+    );
+
+    throw makeError("resolver-not-confirmed", message, 422, [
+      {
+        resolverEndpointCalled:
+          resolution.resolverEndpointCalled || null,
+        recordEndpointCalled:
+          resolution.recordEndpointCalled || null,
+        didDocument
+      }
+    ]);
+  }
+
+  const resolvedSnapshotHash =
+    fullRecord.snapshotHash ||
+    fullRecord.snapshot_hash ||
+    didDocument.currentVersion;
+
   if (
-    didDocument.id !== migration.record_did ||
-    didDocument.recordEndpoint !== expectedEndpoint ||
-    didDocument.currentVersion !== migration.current_snapshot_hash
+    fullRecord.did !== migration.record_did ||
+    resolvedSnapshotHash !== migration.current_snapshot_hash
   ) {
     const message =
-      "Resolved DID document does not point to the expected AIS Record";
+      "The Record retrieved through the federated resolver does not match the archived Record";
 
     await pool.query(
       `
@@ -901,42 +1010,15 @@ async function verifyResolver(recordId) {
     throw makeError("resolver-not-confirmed", message, 422, [
       {
         expectedDid: migration.record_did,
-        expectedEndpoint,
         expectedCurrentVersion: migration.current_snapshot_hash,
-        resolvedDid: didDocument.id,
-        resolvedEndpoint: didDocument.recordEndpoint,
-        resolvedCurrentVersion: didDocument.currentVersion
+        actualDid: fullRecord.did || null,
+        actualSnapshotHash: resolvedSnapshotHash || null,
+        resolverEndpointCalled:
+          resolution.resolverEndpointCalled || null,
+        recordEndpointCalled:
+          resolution.recordEndpointCalled || null
       }
     ]);
-  }
-
-  let archivedRecord;
-
-  try {
-    const response = await fetch(didDocument.recordEndpoint);
-
-    if (!response.ok) {
-      throw new Error(`AIS Record endpoint returned HTTP ${response.status}`);
-    }
-
-    archivedRecord = await response.json();
-  } catch (error) {
-    throw makeError(
-      "resolver-not-confirmed",
-      `AIS Record retrieval failed: ${error.message}`,
-      422
-    );
-  }
-
-  if (
-    archivedRecord.did !== migration.record_did ||
-    archivedRecord.snapshotHash !== migration.current_snapshot_hash
-  ) {
-    throw makeError(
-      "resolver-not-confirmed",
-      "AIS Record does not match the expected DID or final snapshot hash",
-      422
-    );
   }
 
   const verifiedAt = new Date().toISOString();

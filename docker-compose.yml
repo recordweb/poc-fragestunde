@@ -137,6 +137,7 @@ services:
       MINICHAT_DID_NAMESPACE: s73f42a3
       SYSTEM_RECORD_DID_NAMESPACE: a1b2c3d4
       MINICHAT_RESOLVER_ENDPOINT: https://vps.recordweb.dev/sox/did
+      RECORD_FINDER_RESOLVE_ENDPOINT: https://vps.recordweb.dev/recordfinder/api/resolve
       SCHEMAS_DIR: /app/schemas
     volumes:
       - ./schemas:/app/schemas:ro
