@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const Ajv = require("ajv");
+const Ajv2020 = require("ajv/dist/2020");
 const addFormats = require("ajv-formats");
 
 const SCHEMA_DIR = process.env.SCHEMAS_DIR || "/app/schemas";
@@ -15,7 +15,7 @@ function readSchema(fileName) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-const ajv = new Ajv({
+const ajv = new Ajv2020({
   allErrors: true,
   strict: false
 });
