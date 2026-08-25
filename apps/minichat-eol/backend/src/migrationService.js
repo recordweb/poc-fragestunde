@@ -435,46 +435,46 @@ function buildSip(record, snapshots) {
     }
   };
 
+  const normalizedSip = normalizeJsonDates(sip);
+
   const sipHeader = {
-    packageType: sip.packageType,
-    profile: sip.profile,
-    profileVersion: sip.profileVersion,
-    createdAt: sip.createdAt,
-    producer: sip.producer,
-    submission: sip.submission,
-    record: sip.record,
-    contents: sip.contents
+    packageType: normalizedSip.packageType,
+    profile: normalizedSip.profile,
+    profileVersion: normalizedSip.profileVersion,
+    createdAt: normalizedSip.createdAt,
+    producer: normalizedSip.producer,
+    submission: normalizedSip.submission,
+    record: normalizedSip.record,
+    contents: normalizedSip.contents
   };
 
-  sip.manifest.entries[0].hash = canonicalHash(sipHeader);
+  normalizedSip.manifest.entries[0].hash = canonicalHash(sipHeader);
 
   const manifestForEntryHash = {
-    algorithm: sip.manifest.algorithm,
+    algorithm: normalizedSip.manifest.algorithm,
     packageHash: "",
-    entries: sip.manifest.entries
+    entries: normalizedSip.manifest.entries
   };
 
-  sip.manifest.entries[5].hash = canonicalHash(manifestForEntryHash);
+  normalizedSip.manifest.entries[5].hash = canonicalHash(manifestForEntryHash);
 
   const packageForHash = {
-    packageType: sip.packageType,
-    profile: sip.profile,
-    profileVersion: sip.profileVersion,
-    createdAt: sip.createdAt,
-    producer: sip.producer,
-    submission: sip.submission,
-    record: sip.record,
-    contents: sip.contents,
-    recordMetadata: sip.recordMetadata,
-    snapshots: sip.snapshots,
-    primaryData: sip.primaryData,
-    preservationMetadata: sip.preservationMetadata,
-    manifestEntries: sip.manifest.entries
+    packageType: normalizedSip.packageType,
+    profile: normalizedSip.profile,
+    profileVersion: normalizedSip.profileVersion,
+    createdAt: normalizedSip.createdAt,
+    producer: normalizedSip.producer,
+    submission: normalizedSip.submission,
+    record: normalizedSip.record,
+    contents: normalizedSip.contents,
+    recordMetadata: normalizedSip.recordMetadata,
+    snapshots: normalizedSip.snapshots,
+    primaryData: normalizedSip.primaryData,
+    preservationMetadata: normalizedSip.preservationMetadata,
+    manifestEntries: normalizedSip.manifest.entries
   };
 
-  sip.manifest.packageHash = canonicalHash(packageForHash);
-
-  const normalizedSip = normalizeJsonDates(sip);
+  normalizedSip.manifest.packageHash = canonicalHash(packageForHash);
 
   if (!validateMiniChatSip(normalizedSip)) {
     throw makeError(
