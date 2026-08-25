@@ -242,6 +242,65 @@ const swaggerDefinition = {
           }
         }
       },
+      AipExportPackage: {
+        type: "object",
+        required: [
+          "packageType",
+          "profile",
+          "profileVersion",
+          "aipId",
+          "acceptedAt",
+          "record",
+          "contents",
+          "manifest",
+          "files",
+          "manifestDocument"
+        ],
+        properties: {
+          packageType: {
+            type: "string",
+            example: "RWP-OAIS-AIP"
+          },
+          profile: {
+            type: "string",
+            example: "MiniChat"
+          },
+          profileVersion: {
+            type: "string",
+            example: "0.1"
+          },
+          aipId: {
+            type: "string",
+            example: "aip:8fe6f638-5975-426f-8a31-f7e8027d9d4e"
+          },
+          acceptedAt: {
+            type: "string",
+            format: "date-time"
+          },
+          sourceSip: {
+            type: "object"
+          },
+          record: {
+            type: "object"
+          },
+          contents: {
+            type: "object"
+          },
+          manifest: {
+            type: "object"
+          },
+          files: {
+            type: "object",
+            description:
+              "Logische Dateien des archivischen Exportpakets."
+          },
+          manifestDocument: {
+            type: "object",
+            description:
+              "Manifest mit Einzeldatei-Hashes."
+          }
+        }
+      },      
       DeletionRecordEnvelope: {
         type: "object",
         required: [
