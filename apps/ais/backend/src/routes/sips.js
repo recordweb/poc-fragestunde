@@ -287,20 +287,19 @@ router.post("/", async (req, res, next) => {
             a.record_did,
             a.sip_package_hash,
             a.accepted_at,
-            r.snapshot_hash,
+            (
+              SELECT snapshot_hash
+              FROM ais_record_snapshots
+              WHERE record_id = ar.id
+              ORDER BY version DESC
+              LIMIT 1
+            ) AS snapshot_hash,
             sr.receipt
           FROM ais_aips a
           JOIN ais_records ar ON ar.aip_id = a.aip_id
-          LEFT JOIN LATERAL (
-            SELECT snapshot_hash
-            FROM ais_record_snapshots
-            WHERE record_id = ar.id
-            ORDER BY version DESC
-            LIMIT 1
-          ) r ON true
           LEFT JOIN ais_submission_receipts sr ON sr.aip_id = a.aip_id
           WHERE a.record_did = $1
-          FOR UPDATE
+          FOR UPDATE OF a, ar
         `,
         [sip.record.did]
       );

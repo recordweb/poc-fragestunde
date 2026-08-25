@@ -35,10 +35,10 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use((error, _req, res, _next) => {
   console.error(error);
 
-  res.status(500).json({
-    error: "internal-error",
-    message: "Internal server error",
-    details: []
+  res.status(error.status || 500).json({
+    error: error.code || "internal-error",
+    message: error.message || "Internal server error",
+    details: error.details || []
   });
 });
 
