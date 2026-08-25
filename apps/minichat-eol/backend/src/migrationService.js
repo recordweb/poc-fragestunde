@@ -116,7 +116,13 @@ function mapMigration(row) {
           deletionRecordDid: row.deletion_record_did,
           deletionRecordSnapshotHash: row.deletion_record_snapshot_hash,
           deletionRecord: row.deletion_record,
-          acceptedAt: toIsoString(row.deletion_record_accepted_at)
+          ...(row.deletion_record_accepted_at
+            ? {
+                acceptedAt: toIsoString(
+                  row.deletion_record_accepted_at
+                )
+              }
+            : {})
         }
       : null,
     error: row.error_code
@@ -602,7 +608,11 @@ function ensureMigrationSchema(row) {
       deletionRecordDid: migration.deletion.deletionRecordDid,
       deletionRecordSnapshotHash:
         migration.deletion.deletionRecordSnapshotHash,
-      acceptedAt: migration.deletion.acceptedAt
+      ...(migration.deletion.acceptedAt
+        ? {
+            acceptedAt: migration.deletion.acceptedAt
+          }
+        : {})
     };
   }
 
