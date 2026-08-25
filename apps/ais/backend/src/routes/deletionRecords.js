@@ -75,19 +75,18 @@ async function verifyDeletionRecord(client, envelope) {
         a.aip_id,
         a.sip_package_hash,
         sr.receipt_hash,
-        latest.snapshot_hash AS current_snapshot_hash
+        (
+          SELECT snapshot_hash
+          FROM ais_record_snapshots
+          WHERE record_id = r.id
+          ORDER BY version DESC
+          LIMIT 1
+        ) AS current_snapshot_hash
       FROM ais_records r
       JOIN ais_aips a ON a.aip_id = r.aip_id
       JOIN ais_submission_receipts sr ON sr.aip_id = a.aip_id
-      LEFT JOIN LATERAL (
-        SELECT snapshot_hash
-        FROM ais_record_snapshots
-        WHERE record_id = r.id
-        ORDER BY version DESC
-        LIMIT 1
-      ) latest ON true
       WHERE r.did = $1
-      FOR UPDATE
+      FOR UPDATE OF r, a, sr
     `,
     [payload.targetRecord.did]
   );
