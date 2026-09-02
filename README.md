@@ -6,7 +6,7 @@ Dieser Proof of Concept demonstriert RecordWeb am Beispiel der **parlamentarisch
 
 Der PoC demonstriert bewusst keine vollständige Produktionsimplementierung. Er zeigt den **konzeptionellen Kern von RecordWeb**: ein Record entsteht dort, wo er hingehört, bleibt dort, und wird von anderen Systemen via DID gelesen — ohne Kopie, ohne Datenmigration, ohne zentrales Repository.
 
-Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht und nicht mit den beteiligten Parteien abgestimmt. **Der PoC ist somit ein fiktiver Demonstrator mit einem minimalen realen Bezug**.
+Der PoC dient einzig der Demonstration von RecordWeb. Er ist stark vereinfacht und nicht mit den beteiligten Parteien abgestimmt. **Der PoC ist somit ein fiktiver Demonstrator mit einem minimalen realen Bezug**. 
 
 ---
 
