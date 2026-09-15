@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BAR – Conformance Authority</title>
+  <title>Archive – Conformance Authority</title>
   <style>
     :root {
       --blue: #003b70;
@@ -351,8 +351,8 @@
 <body>
   <header>
     <div>
-      <h1>BAR – Conformance Authority</h1>
-      <p>Bundesarchiv · RecordWeb Fragestunde PoC · Ausbaustufe 1</p>
+      <h1>Archive – Conformance Authority</h1>
+      <p>Archiv · RecordWeb Fragestunde PoC · Ausbaustufe 1</p>
     </div>
     <div id="userInfo" class="user-info hidden">
       <strong id="userName"></strong>
@@ -364,10 +364,10 @@
 
   <main>
     <section id="loginView" class="login-card">
-      <h2>BAR-Anmeldung</h2>
+      <h2>Anmeldung</h2>
       <p class="hint">
         Die Anmeldung ist bewusst einfach gehalten. Sie erzeugt für den PoC eine
-        RWP-DID für die handelnde Person und bindet die gewählte BAR-Rolle an die Session.
+        RWP-DID für die handelnde Person und bindet die gewählte Archiv-Rolle an die Session.
       </p>
 
       <div id="loginMessage"></div>
@@ -378,11 +378,11 @@
       </div>
 
       <div class="field">
-        <label for="role">BAR-Rolle</label>
+        <label for="role">Archiv-Rolle</label>
         <select id="role">
-          <option value="bar-attester">BAR Attester – Assessment anlegen, bearbeiten und finalisieren</option>
-          <option value="bar-auditor">BAR Auditor – Assessment prüfen und Evidenz erfassen</option>
-          <option value="bar-viewer">BAR Viewer – nur lesen</option>
+          <option value="bar-attester">Archive Attester – Assessment anlegen, bearbeiten und finalisieren</option>
+          <option value="bar-auditor">Archive Auditor – Assessment prüfen und Evidenz erfassen</option>
+          <option value="bar-viewer">Archive Viewer – nur lesen</option>
         </select>
       </div>
 
@@ -404,7 +404,7 @@
 
           <p class="hint">
             Ein Draft dokumentiert die laufende Prüfung. Erst nach bestandenen
-            Pflichttests und vollständiger Evidenz kann ein BAR Attester einen
+            Pflichttests und vollständiger Evidenz kann ein Archive Attester einen
             unveränderlichen ConformanceRecord finalisieren.
           </p>
 
@@ -426,7 +426,7 @@
         <h2>SchemaRecord auditieren</h2>
 
         <p class="hint">
-          Das BAR prüft unabhängig, ob eine Zielanwendung den erwarteten
+          Das Archiv prüft unabhängig, ob eine Zielanwendung den erwarteten
           ConformanceRecord im auflösbaren SchemaRecord als Hard Link publiziert.
           Diese Prüfung verändert weder Schema noch ConformanceRecord.
         </p>
@@ -456,7 +456,7 @@
 
           <div class="field">
             <label for="expectedConformanceRecord">
-              Erwarteter BAR-ConformanceRecord
+              Erwarteter Archive-ConformanceRecord
             </label>
             <select id="expectedConformanceRecord">
               <option value="">Finalisierte Attestationen laden…</option>
@@ -694,7 +694,7 @@
         <h3>Pflichttests</h3>
         <p class="hint">
           Alle Tests müssen bestanden sein. Evidenz kann als Beschreibung, Referenz oder
-          Testartefakt hinterlegt werden. Die BAR-App bindet den Evidenztext beim
+          Testartefakt hinterlegt werden. Die Archive-App bindet den Evidenztext beim
           Finalisieren über einen SHA-256-Hash an den ConformanceRecord.
         </p>
 
@@ -846,7 +846,7 @@
         <h2>Neue Conformance-Prüfung</h2>
         <p class="hint">
           Die neue Akte wird zunächst als Draft erstellt. Trage anschliessend die
-          Testresultate und Evidenz ein; ein BAR Attester kann den daraus
+          Testresultate und Evidenz ein; ein Archive Attester kann den daraus
           entstehenden ConformanceRecord finalisieren.
         </p>
 
@@ -1031,7 +1031,7 @@
         `;
 
         $("schemaAuditResult").innerHTML = auditHtmlStep(
-          "Finalisierte BAR-Attestationen laden",
+          "Finalisierte Archiv-Attestationen laden",
           "error",
           escapeHtml(error.message)
         );
@@ -1102,9 +1102,9 @@
 
       if (!expectedRecord) {
         result.innerHTML = auditHtmlStep(
-          "Erwartete BAR-Attestation wählen",
+          "Erwartete Archiv-Attestation wählen",
           "error",
-          "Wähle einen finalisierten BAR-ConformanceRecord aus."
+          "Wähle einen finalisierten Archiv-ConformanceRecord aus."
         );
         return;
       }
@@ -1231,18 +1231,18 @@
 
         if (!matchingLink) {
           throw new Error(
-            "Der erwartete BAR-ConformanceRecord ist nicht als Hard Link im SchemaRecord enthalten."
+            "Der erwartete Archive-ConformanceRecord ist nicht als Hard Link im SchemaRecord enthalten."
           );
         }
 
         if (matchingLink.snapshotHash !== expectedSnapshotHash) {
           throw new Error(
-            "Der SchemaRecord referenziert die BAR-DID, aber mit einem anderen Snapshot-Hash."
+            "Der SchemaRecord referenziert die Archive-DID, aber mit einem anderen Snapshot-Hash."
           );
         }
 
         steps.push(auditHtmlStep(
-          "BAR-Conformance-Bindung geprüft",
+          "Archive-Conformance-Bindung geprüft",
           "ok",
           `
             Hard Link gefunden:<br>
@@ -1257,7 +1257,7 @@
           steps.push(auditHtmlStep(
             "Gültigkeitszeitraum",
             "error",
-            `Die erwartete BAR-Attestation ist seit ${escapeHtml(
+            `Die erwartete Archive-Attestation ist seit ${escapeHtml(
               expiresAt
             )} abgelaufen.`
           ));
@@ -1266,8 +1266,8 @@
             "Gültigkeitszeitraum",
             "ok",
             expiresAt
-              ? `Die BAR-Attestation ist gültig bis ${escapeHtml(expiresAt)}.`
-              : "Die BAR-Attestation enthält kein Ablaufdatum."
+              ? `Die Archive-Attestation ist gültig bis ${escapeHtml(expiresAt)}.`
+              : "Die Archive-Attestation enthält kein Ablaufdatum."
           ));
         }
 
