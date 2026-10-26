@@ -213,6 +213,8 @@ services:
       - minichat
       - minichat-eol
       - ais
+    ports:
+      - "127.0.0.1:8081:80"
       
 networks:
   poc_network:
