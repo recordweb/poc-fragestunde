@@ -367,3 +367,4 @@ Dieses Repository folgt der PoC-Struktur von `recordweb/poc-*`.
 
 Licensed under the W3C Software and Document License 
 (https://www.w3.org/copyright/software-license-2023/).
+
